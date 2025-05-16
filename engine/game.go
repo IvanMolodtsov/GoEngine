@@ -13,7 +13,7 @@ type Game struct {
 	Renderer   *Renderer
 	IsRunning  bool
 	frameStart time.Time
-	DeltaTime  float64
+	DeltaTime  time.Duration
 }
 
 func InitGame(width int64, height int64) (*Game, error) {
@@ -44,6 +44,6 @@ func (game *Game) FrameStart() {
 }
 
 func (game *Game) FrameEnd() {
-	elapsed := time.Since(game.frameStart)
-	game.DeltaTime = float64(elapsed.Nanoseconds())
+	game.DeltaTime = time.Since(game.frameStart)
+
 }
