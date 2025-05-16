@@ -1,6 +1,8 @@
 package main
 
 import (
+	"image/color"
+
 	"github.com/IvanMolodtsov/GoEngine/engine"
 )
 
@@ -73,6 +75,10 @@ func main() {
 
 				// check if triangle if visible
 				if normal.DotProduct(cameraRay) < 0.0 {
+					lightDir := engine.NewVector3d(0, 0, -1.0)
+					lightDir = lightDir.Normalize()
+
+					luminance := normal.DotProduct(lightDir)
 
 					// Project triangles from 3D --> 2D
 					projected.Points[0] = game.Renderer.ProjectionMatrix.MulV(transformed.Points[0])
@@ -94,7 +100,9 @@ func main() {
 					projected.Points[2].X *= 0.5 * float64(WIDTH)
 					projected.Points[2].Y *= 0.5 * float64(HEIGHT)
 
-					projected.Render(game.Renderer)
+					projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
+
+					projected.Fill(game.Renderer)
 
 				}
 
