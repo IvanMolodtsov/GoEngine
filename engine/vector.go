@@ -20,7 +20,7 @@ func NewVector3d(x, y, z float64) Vector3d {
 }
 
 func (v1 Vector3d) Print() {
-	println(v1.X, ", ", v1.Y, ", ", v1.Z, ", ", v1.W)
+	print(v1.X, ", ", v1.Y, ", ", v1.Z, ", ", v1.W)
 }
 
 func (v1 Vector3d) Add(v2 Vector3d) Vector3d {

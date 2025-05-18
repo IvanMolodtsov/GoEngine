@@ -50,3 +50,39 @@ func (game *Game) FrameEnd() {
 	game.DeltaTime = time.Since(game.frameStart)
 
 }
+
+func (game *Game) Loop(entities []Object) {
+
+	for game.IsRunning {
+		renderQueue := make(chan Triangle)
+		// close := make(chan interface{})
+		// wg := new(sync.WaitGroup)
+		ReadEvents(game)
+		game.FrameStart()
+
+		for _, o := range entities {
+			// wg.Add(1)
+			go game.Renderer.Project(o, game.Camera, renderQueue)
+		}
+
+		render := make([]Triangle, 0)
+		// wg.Wait()
+		for t := range renderQueue {
+			render = append(render, t)
+		}
+
+		// wg.Wait()
+		// close(renderQueue)
+
+		render = Sort(render, func(a, b Triangle) bool {
+			z1 := (a.Points[0].Z + a.Points[1].Z + a.Points[2].Z) / 3.0
+			z2 := (b.Points[0].Z + b.Points[1].Z + b.Points[2].Z) / 3.0
+			return z1 > z2
+		})
+
+		game.Renderer.Render(render)
+
+		game.FrameEnd()
+	}
+
+}
