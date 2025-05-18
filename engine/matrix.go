@@ -43,9 +43,9 @@ func (m Matrix4x4) Inverse() Matrix4x4 {
 	matrix.M[2][1] = m.M[1][2]
 	matrix.M[2][2] = m.M[2][2]
 	matrix.M[2][3] = 0.0
-	matrix.M[3][0] = -(m.M[3][0]*matrix.M[0][0] + m.M[3][1]*matrix.M[1][0] + m.M[3][2]*matrix.M[2][0])
-	matrix.M[3][1] = -(m.M[3][0]*matrix.M[0][1] + m.M[3][1]*matrix.M[1][1] + m.M[3][2]*matrix.M[2][1])
-	matrix.M[3][2] = -(m.M[3][0]*matrix.M[0][2] + m.M[3][1]*matrix.M[1][2] + m.M[3][2]*matrix.M[2][2])
+	matrix.M[3][0] = -1.0 * (m.M[3][0]*matrix.M[0][0] + m.M[3][1]*matrix.M[1][0] + m.M[3][2]*matrix.M[2][0])
+	matrix.M[3][1] = -1.0 * (m.M[3][0]*matrix.M[0][1] + m.M[3][1]*matrix.M[1][1] + m.M[3][2]*matrix.M[2][1])
+	matrix.M[3][2] = -1.0 * (m.M[3][0]*matrix.M[0][2] + m.M[3][1]*matrix.M[1][2] + m.M[3][2]*matrix.M[2][2])
 	matrix.M[3][3] = 1.0
 
 	return matrix
@@ -76,9 +76,9 @@ func XRotationMatrix(angle float64) Matrix4x4 {
 func YRotationMatrix(angle float64) Matrix4x4 {
 	var matrix Matrix4x4
 	matrix.M[0][0] = math.Cos(angle)
-	matrix.M[1][1] = math.Sin(angle)
-	matrix.M[1][2] = -1.0 * math.Sin(angle)
-	matrix.M[2][1] = 1.0
+	matrix.M[0][2] = math.Sin(angle)
+	matrix.M[2][0] = -1.0 * math.Sin(angle)
+	matrix.M[1][1] = 1.0
 	matrix.M[2][2] = math.Cos(angle)
 	matrix.M[3][3] = 1.0
 	return matrix
@@ -114,6 +114,35 @@ func ProjectionMatrix(aspectRatio, fNear, fFar float64, fov float64) Matrix4x4 {
 	matrix.M[3][2] = (-fFar * fNear) / (fFar - fNear)
 	matrix.M[2][3] = 1.0
 	matrix.M[3][3] = 0.0
+
+	return matrix
+}
+
+func PointAtMatrix(pos, target, up Vector3d) Matrix4x4 {
+	var matrix Matrix4x4
+	newForward := target.Sub(pos).Normalize()
+	newUp := up.Sub(newForward.Mul(up.DotProduct(newForward))).Normalize()
+	newRight := newUp.CrossProduct(newForward)
+
+	matrix.M[0][0] = newRight.X
+	matrix.M[0][1] = newRight.Y
+	matrix.M[0][2] = newRight.Z
+	matrix.M[0][3] = 0.0
+
+	matrix.M[1][0] = newUp.X
+	matrix.M[1][1] = newUp.Y
+	matrix.M[1][2] = newUp.Z
+	matrix.M[1][3] = 0.0
+
+	matrix.M[2][0] = newForward.X
+	matrix.M[2][1] = newForward.Y
+	matrix.M[2][2] = newForward.Z
+	matrix.M[2][3] = 0.0
+
+	matrix.M[3][0] = pos.X
+	matrix.M[3][1] = pos.Y
+	matrix.M[3][2] = pos.Z
+	matrix.M[3][3] = 1.0
 
 	return matrix
 }

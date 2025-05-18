@@ -11,6 +11,7 @@ type Game struct {
 	Height     int64
 	window     *sdl.Window
 	Renderer   *Renderer
+	Camera     *Camera
 	IsRunning  bool
 	frameStart time.Time
 	DeltaTime  time.Duration
@@ -31,6 +32,8 @@ func InitGame(width int64, height int64) (*Game, error) {
 		return nil, err
 	}
 	game.Renderer = renderer
+	game.Camera = InitCamera()
+
 	return &game, nil
 }
 

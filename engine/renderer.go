@@ -21,7 +21,6 @@ type Renderer struct {
 	screenWidth      int64
 	screenHeight     int64
 	ProjectionMatrix Matrix4x4
-	Camera           Vector3d
 }
 
 func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, error) {
@@ -41,8 +40,6 @@ func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, err
 	}
 	renderer.texture = t
 	renderer.ProjectionMatrix = ProjectionMatrix(float64(renderer.screenHeight)/float64(renderer.screenWidth), fNear, fFar, FOV)
-
-	renderer.Camera = NewVector3d(0.0, 0.0, 0.0)
 
 	renderer.ProjectionMatrix.Print()
 	return &renderer, nil
