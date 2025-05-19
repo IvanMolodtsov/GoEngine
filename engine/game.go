@@ -54,25 +54,22 @@ func (game *Game) FrameEnd() {
 func (game *Game) Loop(entities []Object) {
 
 	for game.IsRunning {
-		renderQueue := make(chan Triangle)
+
 		// close := make(chan interface{})
 		// wg := new(sync.WaitGroup)
 		ReadEvents(game)
 		game.FrameStart()
-
+		renderQueue := NewQueue[Triangle]()
 		for _, o := range entities {
-			// wg.Add(1)
+			renderQueue.Start()
 			go game.Renderer.Project(o, game.Camera, renderQueue)
 		}
 
 		render := make([]Triangle, 0)
-		// wg.Wait()
-		for t := range renderQueue {
+		for t := range renderQueue.Values {
+			// t := renderQueue.Pop()
 			render = append(render, t)
 		}
-
-		// wg.Wait()
-		// close(renderQueue)
 
 		render = Sort(render, func(a, b Triangle) bool {
 			z1 := (a.Points[0].Z + a.Points[1].Z + a.Points[2].Z) / 3.0

@@ -75,30 +75,36 @@ func (renderer *Renderer) Render(tris []Triangle) {
 
 	renderer.buffer = unsafe.Slice((*uint32)(renderer.bufferSurface.Pixels), renderer.bufferSurface.Pitch*int32(renderer.screenHeight))
 
-	trisToRaster := make([]Triangle, 0)
+	trisToRaster := NewQueue[Triangle]()
 
 	for _, t := range tris {
+		trisToRaster.Start()
+		go func() {
+			listTriangles := make([]Triangle, 0)
+			listTriangles = append(listTriangles, t)
+			var newT = 1
+			for _, p := range renderer.planes {
+				for newT > 0 {
+					test := listTriangles[0]
+					listTriangles = listTriangles[1:]
+					newT -= 1
 
-		listTriangles := make([]Triangle, 0)
-		listTriangles = append(listTriangles, t)
-		var newT = 1
-		for _, p := range renderer.planes {
-			for newT > 0 {
-				test := listTriangles[0]
-				listTriangles = listTriangles[1:]
-				newT -= 1
+					clipped := p.Clip(test)
+					listTriangles = append(listTriangles, clipped...)
 
-				clipped := p.Clip(test)
-				listTriangles = append(listTriangles, clipped...)
-
+				}
+				newT = len(listTriangles)
 			}
-			newT = len(listTriangles)
-		}
 
-		trisToRaster = append(trisToRaster, listTriangles...)
+			for _, res := range listTriangles {
+				trisToRaster.Push(res)
+			}
+			trisToRaster.End()
+		}()
+
 	}
 
-	for _, t := range trisToRaster {
+	for t := range trisToRaster.Values {
 		renderer.FillTriangle(t)
 		t.Render(renderer)
 	}
@@ -185,7 +191,7 @@ func (renderer *Renderer) DrawLine(x1, y1, x2, y2 float64, color uint32) {
 
 }
 
-func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender chan<- Triangle) {
+func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender *Queue[Triangle]) {
 	var wg sync.WaitGroup
 	worldMatrix := o.GetWorld()
 	view := camera.GetView()
@@ -241,7 +247,7 @@ func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender chan<- 
 
 					projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
 
-					trisToRender <- projected
+					trisToRender.Push(projected)
 
 				}
 			}
@@ -249,7 +255,7 @@ func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender chan<- 
 		}()
 	}
 	wg.Wait()
-	close(trisToRender)
+	trisToRender.End()
 }
 
 func (r *Renderer) FillTriangle(t Triangle) {
