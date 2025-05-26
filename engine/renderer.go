@@ -6,7 +6,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/jupiterrider/purego-sdl3/sdl"
+	// "github.com/jupiterrider/purego-sdl3/sdl"
+	"github.com/IvanMolodtsov/GoEngine/sdl"
 )
 
 const (
@@ -29,18 +30,18 @@ type Renderer struct {
 
 func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, error) {
 	var renderer Renderer
-	r := sdl.CreateRenderer(window, "")
-	if r == nil {
-		return nil, GetError()
+	r, err := sdl.CreateRenderer(window, "")
+	if err != nil {
+		return nil, err
 	}
 	renderer.renderer = r
 
 	renderer.screenWidth = width
 	renderer.screenHeight = height
 
-	t := sdl.CreateTexture(renderer.renderer, sdl.PixelFormatRGBA32, sdl.TextureAccessStreaming, int32(renderer.screenWidth), int32(renderer.screenHeight))
-	if t == nil {
-		return nil, GetError()
+	t, err := sdl.CreateTexture(renderer.renderer, sdl.PixelFormatRGBA32, sdl.TextureAccessStreaming, int32(renderer.screenWidth), int32(renderer.screenHeight))
+	if err != nil {
+		return nil, err
 	}
 	renderer.texture = t
 	renderer.ProjectionMatrix = ProjectionMatrix(float64(renderer.screenHeight)/float64(renderer.screenWidth), fNear, fFar, FOV)
@@ -68,8 +69,11 @@ func (renderer *Renderer) clearScreenBuffer() {
 
 func (renderer *Renderer) Render(tris []Triangle) {
 	sdl.RenderClear(renderer.renderer)
-
-	sdl.LockTextureToSurface(renderer.texture, nil, &renderer.bufferSurface)
+	var err error
+	renderer.bufferSurface, err = sdl.LockTextureToSurface(renderer.texture, nil, renderer.bufferSurface)
+	if err != nil {
+		panic(err)
+	}
 
 	renderer.clearScreenBuffer()
 

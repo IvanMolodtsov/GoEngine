@@ -3,7 +3,7 @@ package engine
 import (
 	"time"
 
-	"github.com/jupiterrider/purego-sdl3/sdl"
+	"github.com/IvanMolodtsov/GoEngine/sdl"
 )
 
 type Game struct {
@@ -22,9 +22,9 @@ func InitGame(width int64, height int64) (*Game, error) {
 	game.IsRunning = true
 	game.Height = height
 	game.Width = width
-	w := sdl.CreateWindow("Game", int32(width), int32(height), 0)
-	if w == nil {
-		return nil, GetError()
+	w, err := sdl.CreateWindow("Game", int32(width), int32(height), 0)
+	if err != nil {
+		return nil, err
 	}
 	game.window = w
 	renderer, err := InitRenderer(game.window, width, height)

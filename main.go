@@ -42,6 +42,7 @@ func main() {
 		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
 	}
 	o := engine.NewObject(cube, engine.NewVector3d(0, 0, 5), 0.0)
+	// o.Rotation = engine.XRotationMatrix(50)
 
 	game.Loop([]engine.Object{o})
 }
