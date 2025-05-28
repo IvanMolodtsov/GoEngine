@@ -1,7 +1,7 @@
 package engine
 
 type Mesh struct {
-	Tris []Triangle
+	Tris []*Triangle
 }
 
 // func (m Mesh) Render(renderer *Renderer) {

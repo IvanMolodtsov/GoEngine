@@ -1,18 +1,18 @@
 package engine
 
 type Plane struct {
-	P Vector3d
-	N Vector3d
+	P *Vector3d
+	N *Vector3d
 }
 
-func NewPlane(p, n Vector3d) Plane {
+func NewPlane(p, n *Vector3d) *Plane {
 	var plane Plane
 	plane.P = p
 	plane.N = n.Normalize()
-	return plane
+	return &plane
 }
 
-func (p Plane) Intersection(lineStart, lineEnd Vector3d) Vector3d {
+func (p *Plane) Intersection(lineStart, lineEnd *Vector3d) *Vector3d {
 	planeD := -1.0 * p.N.DotProduct(p.P)
 	ad := lineStart.DotProduct(p.N)
 	bd := lineEnd.DotProduct(p.N)
@@ -22,9 +22,9 @@ func (p Plane) Intersection(lineStart, lineEnd Vector3d) Vector3d {
 	return lineStart.Add(lineToIntersect)
 }
 
-func (plane Plane) Clip(t Triangle) []Triangle {
-	var result = make([]Triangle, 0)
-	var insidePoints, outsidePoints []Vector3d
+func (plane *Plane) Clip(t *Triangle) []*Triangle {
+	var result = make([]*Triangle, 0)
+	var insidePoints, outsidePoints []*Vector3d
 	d0 := plane.Dist(t.Points[0])
 	d1 := plane.Dist(t.Points[1])
 	d2 := plane.Dist(t.Points[2])
@@ -63,7 +63,7 @@ func (plane Plane) Clip(t Triangle) []Triangle {
 		outT.Points[1] = plane.Intersection(insidePoints[0], outsidePoints[0])
 		outT.Points[2] = plane.Intersection(insidePoints[0], outsidePoints[1])
 
-		return append(result, outT)
+		return append(result, &outT)
 	}
 
 	if (len(insidePoints) == 2) && (len(outsidePoints) == 1) {
@@ -80,13 +80,13 @@ func (plane Plane) Clip(t Triangle) []Triangle {
 		outT2.Points[1] = outT1.Points[2]
 		outT2.Points[2] = plane.Intersection(insidePoints[1], outsidePoints[0])
 
-		return append(result, outT1, outT2)
+		return append(result, &outT1, &outT2)
 	}
 
 	return result
 }
 
-func (plane Plane) Dist(p Vector3d) float64 {
+func (plane *Plane) Dist(p *Vector3d) float64 {
 	// n := v.Normalize()
 	return plane.N.X*p.X + plane.N.Y*p.Y + plane.N.Z*p.Z - plane.N.DotProduct(plane.P)
 }

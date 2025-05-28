@@ -16,7 +16,7 @@ func ReadFile(path string) Mesh {
 
 	var mesh Mesh
 
-	var vertices = make([]Vector3d, 0)
+	var vertices = make([]*Vector3d, 0)
 
 	scanner := bufio.NewScanner(file)
 
@@ -57,8 +57,8 @@ func ReadFile(path string) Mesh {
 				panic(err)
 			}
 
-			mesh.Tris = append(mesh.Tris, Triangle{
-				Points: [3]Vector3d{
+			mesh.Tris = append(mesh.Tris, &Triangle{
+				Points: [3]*Vector3d{
 					vertices[a-1], vertices[b-1], vertices[c-1],
 				},
 			})

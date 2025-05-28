@@ -23,9 +23,9 @@ type Renderer struct {
 	buffer           []uint32
 	screenWidth      int64
 	screenHeight     int64
-	ProjectionMatrix Matrix4x4
-	screenClipPlane  Plane
-	planes           []Plane
+	ProjectionMatrix *Matrix4x4
+	screenClipPlane  *Plane
+	planes           []*Plane
 }
 
 func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, error) {
@@ -52,7 +52,7 @@ func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, err
 	left := NewPlane(NewVector3d(0, 0, 0), NewVector3d(1, 0, 0))
 	right := NewPlane(NewVector3d(float64(renderer.screenWidth-1), 0, 0), NewVector3d(-1, 0, 0))
 
-	renderer.planes = []Plane{
+	renderer.planes = []*Plane{
 		top, bottom, left, right,
 	}
 	return &renderer, nil
@@ -67,7 +67,7 @@ func (renderer *Renderer) clearScreenBuffer() {
 	sdl.FillSurfaceRect(renderer.bufferSurface, nil, 0)
 }
 
-func (renderer *Renderer) Render(tris []Triangle) {
+func (renderer *Renderer) Render(tris []*Triangle) {
 	sdl.RenderClear(renderer.renderer)
 	var err error
 	renderer.bufferSurface, err = sdl.LockTextureToSurface(renderer.texture, nil, renderer.bufferSurface)
@@ -79,12 +79,12 @@ func (renderer *Renderer) Render(tris []Triangle) {
 
 	renderer.buffer = unsafe.Slice((*uint32)(renderer.bufferSurface.Pixels), renderer.bufferSurface.Pitch*int32(renderer.screenHeight))
 
-	trisToRaster := NewQueue[Triangle]()
+	trisToRaster := NewQueue[*Triangle]()
 
 	for _, t := range tris {
 		trisToRaster.Start()
 		go func() {
-			listTriangles := make([]Triangle, 0)
+			listTriangles := make([]*Triangle, 0)
 			listTriangles = append(listTriangles, t)
 			var newT = 1
 			for _, p := range renderer.planes {
@@ -195,7 +195,7 @@ func (renderer *Renderer) DrawLine(x1, y1, x2, y2 float64, color uint32) {
 
 }
 
-func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender *Queue[Triangle]) {
+func (renderer *Renderer) Project(o *Object, camera *Camera, trisToRender *Queue[*Triangle]) {
 	var wg sync.WaitGroup
 	worldMatrix := o.GetWorld()
 	view := camera.GetView()
@@ -212,7 +212,7 @@ func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender *Queue[
 
 			// Get surface normal
 			normal := transformed.Normal()
-			cameraRay := transformed.Points[0].Sub(camera.Position)
+			cameraRay := transformed.Points[0].Sub(camera.GetTranslation())
 
 			// check if triangle if visible
 			if normal.DotProduct(cameraRay) < 0.0 {
@@ -226,7 +226,7 @@ func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender *Queue[
 				viewed.Points[2] = view.MulV(transformed.Points[2])
 
 				//Clip Triangle
-				clipped := screenClipPlane.Clip(viewed)
+				clipped := screenClipPlane.Clip(&viewed)
 
 				for _, c := range clipped {
 					// Project triangles from 3D --> 2D
@@ -251,7 +251,7 @@ func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender *Queue[
 
 					projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
 
-					trisToRender.Push(projected)
+					trisToRender.Push(&projected)
 
 				}
 			}
@@ -262,7 +262,7 @@ func (renderer *Renderer) Project(o Object, camera *Camera, trisToRender *Queue[
 	trisToRender.End()
 }
 
-func (r *Renderer) FillTriangle(t Triangle) {
+func (r *Renderer) FillTriangle(t *Triangle) {
 	x1 := int64(t.Points[0].X)
 	y1 := int64(t.Points[0].Y)
 	x2 := int64(t.Points[1].X)

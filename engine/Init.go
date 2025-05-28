@@ -11,7 +11,7 @@ func Init(width int64, height int64) (*Game, error) {
 	return InitGame(width, height)
 }
 
-func Quit(game *Game) {
+func (game *Game) Quit() {
 	game.destroy()
 	sdl.Quit()
 }

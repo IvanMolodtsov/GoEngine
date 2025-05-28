@@ -4,17 +4,21 @@ import (
 	"time"
 
 	"github.com/IvanMolodtsov/GoEngine/sdl"
+	"github.com/IvanMolodtsov/GoEngine/shared"
 )
 
 type Game struct {
-	Width      int64
-	Height     int64
-	window     *sdl.Window
-	Renderer   *Renderer
-	Camera     *Camera
-	IsRunning  bool
-	frameStart time.Time
-	DeltaTime  time.Duration
+	Width        int64
+	Height       int64
+	window       *sdl.Window
+	Renderer     *Renderer
+	Camera       *Camera
+	IsRunning    bool
+	frameStart   time.Time
+	DeltaTime    time.Duration
+	eventQueue   chan Event
+	commandQueue chan shared.Command
+	renderQueue  chan []*Triangle
 }
 
 func InitGame(width int64, height int64) (*Game, error) {
@@ -33,6 +37,9 @@ func InitGame(width int64, height int64) (*Game, error) {
 	}
 	game.Renderer = renderer
 	game.Camera = InitCamera()
+	game.eventQueue = make(chan Event)
+	game.renderQueue = make(chan []*Triangle)
+	game.commandQueue = make(chan shared.Command)
 
 	return &game, nil
 }
@@ -48,38 +55,74 @@ func (game *Game) FrameStart() {
 
 func (game *Game) FrameEnd() {
 	game.DeltaTime = time.Since(game.frameStart)
-
 }
 
-func (game *Game) Loop(entities []Object) {
-
+func (game *Game) HandleEvents() {
 	for game.IsRunning {
+		select {
+		case event := <-game.eventQueue:
+			println(event.Type())
+			switch event.Type() {
+			case Quit:
+				game.IsRunning = false
+			case AddCommand:
+				game.commandQueue <- event.(*AddCommandEvent).Command
+			}
+		default:
+		}
+	}
+}
 
-		// close := make(chan interface{})
-		// wg := new(sync.WaitGroup)
-		ReadEvents(game)
+func (game *Game) GenerateFrames(entities []*Object) {
+	for game.IsRunning {
 		game.FrameStart()
-		renderQueue := NewQueue[Triangle]()
+		renderQueue := NewQueue[*Triangle]()
 		for _, o := range entities {
 			renderQueue.Start()
 			go game.Renderer.Project(o, game.Camera, renderQueue)
 		}
 
-		render := make([]Triangle, 0)
+		render := make([]*Triangle, 0)
 		for t := range renderQueue.Values {
-			// t := renderQueue.Pop()
 			render = append(render, t)
 		}
 
-		render = Sort(render, func(a, b Triangle) bool {
+		render = Sort(render, func(a, b *Triangle) bool {
 			z1 := (a.Points[0].Z + a.Points[1].Z + a.Points[2].Z) / 3.0
 			z2 := (b.Points[0].Z + b.Points[1].Z + b.Points[2].Z) / 3.0
 			return z1 > z2
 		})
 
-		game.Renderer.Render(render)
+		game.renderQueue <- render
 
 		game.FrameEnd()
+	}
+}
+
+func (game *Game) RunCommands() {
+	for game.IsRunning {
+		select {
+		case cmd := <-game.commandQueue:
+			cmd.Invoke()
+		default:
+		}
+	}
+}
+
+func (game *Game) Run(entities []*Object) {
+
+	go game.HandleEvents()
+	go game.RunCommands()
+	go game.GenerateFrames(entities)
+
+	for game.IsRunning {
+		ReadEvents(game)
+
+		select {
+		case tris := <-game.renderQueue:
+			game.Renderer.Render(tris)
+		default:
+		}
 	}
 
 }
