@@ -10,7 +10,7 @@ import (
 type Game struct {
 	Width        int64
 	Height       int64
-	window       *sdl.Window
+	Window       *sdl.Window
 	Renderer     *Renderer
 	Camera       *Camera
 	IsRunning    bool
@@ -30,8 +30,8 @@ func InitGame(width int64, height int64) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	game.window = w
-	renderer, err := InitRenderer(game.window, width, height)
+	game.Window = w
+	renderer, err := InitRenderer(game.Window, width, height)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func InitGame(width int64, height int64) (*Game, error) {
 }
 
 func (game *Game) destroy() {
-	sdl.DestroyWindow(game.window)
+	sdl.DestroyWindow(game.Window)
 	game.Renderer.destroy()
 }
 
@@ -76,26 +76,26 @@ func (game *Game) HandleEvents() {
 func (game *Game) GenerateFrames(entities []*Object) {
 	for game.IsRunning {
 		game.FrameStart()
-		renderQueue := NewQueue[*Triangle]()
+
+		projected := NewQueue[*Triangle]()
+		counter := 0
 		for _, o := range entities {
-			renderQueue.Start()
-			go game.Renderer.Project(o, game.Camera, renderQueue)
+			projected.Add()
+			counter++
+			go game.Renderer.Project(o, game.Camera, projected)
 		}
-
-		render := make([]*Triangle, 0)
-		for t := range renderQueue.Values {
-			render = append(render, t)
-		}
-
+		render := projected.Collect()
 		render = Sort(render, func(a, b *Triangle) bool {
 			z1 := (a.Points[0].Z + a.Points[1].Z + a.Points[2].Z) / 3.0
 			z2 := (b.Points[0].Z + b.Points[1].Z + b.Points[2].Z) / 3.0
 			return z1 > z2
 		})
 
-		game.renderQueue <- render
+		trisToRender := game.Renderer.ClipTriangles(render)
 
+		game.renderQueue <- trisToRender
 		game.FrameEnd()
+		println("generated frames")
 	}
 }
 
@@ -120,6 +120,7 @@ func (game *Game) Run(entities []*Object) {
 
 		select {
 		case tris := <-game.renderQueue:
+			println("render: ", len(tris))
 			game.Renderer.Render(tris)
 		default:
 		}

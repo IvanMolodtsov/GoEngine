@@ -26,7 +26,7 @@ func MergeChan[T interface{}](left chan T, right chan T, c chan T, sort func(a, 
 		val2, ok2 = <-right
 	}
 }
-func MergeSort[T interface{}](arr []T, ch chan T, sort func(a, b T) bool) {
+func MergeSort[T any](arr []T, ch chan T, sort func(a, b T) bool) {
 	if len(arr) < 2 {
 		ch <- arr[0]
 		defer close(ch)
@@ -39,6 +39,10 @@ func MergeSort[T interface{}](arr []T, ch chan T, sort func(a, b T) bool) {
 	go MergeChan(left, right, ch, sort)
 }
 func Sort[T interface{}](a []T, sort func(a, b T) bool) []T {
+	var s []T
+	if len(a) == 0 {
+		return s
+	}
 	c := make(chan T)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -47,7 +51,7 @@ func Sort[T interface{}](a []T, sort func(a, b T) bool) []T {
 		MergeSort(a, c, sort)
 	}()
 	wg.Wait()
-	var s []T
+
 	for v := range c {
 		s = append(s, v)
 	}

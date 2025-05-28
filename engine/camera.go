@@ -28,7 +28,6 @@ func InitCamera() *Camera {
 	c.position = NewVector3d(0.0, 0.0, 0.0)
 	c.rotation = NewVector3d(0.0, 0, 0)
 	c.Direction = NewVector3d(0.0, 0.0, 1.0)
-	// c.Yaw = 0.0
 	return &c
 }
 

@@ -67,22 +67,11 @@ func (renderer *Renderer) clearScreenBuffer() {
 	sdl.FillSurfaceRect(renderer.bufferSurface, nil, 0)
 }
 
-func (renderer *Renderer) Render(tris []*Triangle) {
-	sdl.RenderClear(renderer.renderer)
-	var err error
-	renderer.bufferSurface, err = sdl.LockTextureToSurface(renderer.texture, nil, renderer.bufferSurface)
-	if err != nil {
-		panic(err)
-	}
-
-	renderer.clearScreenBuffer()
-
-	renderer.buffer = unsafe.Slice((*uint32)(renderer.bufferSurface.Pixels), renderer.bufferSurface.Pitch*int32(renderer.screenHeight))
-
+func (renderer *Renderer) ClipTriangles(tris []*Triangle) []*Triangle {
 	trisToRaster := NewQueue[*Triangle]()
 
 	for _, t := range tris {
-		trisToRaster.Start()
+		trisToRaster.Add()
 		go func() {
 			listTriangles := make([]*Triangle, 0)
 			listTriangles = append(listTriangles, t)
@@ -103,12 +92,26 @@ func (renderer *Renderer) Render(tris []*Triangle) {
 			for _, res := range listTriangles {
 				trisToRaster.Push(res)
 			}
-			trisToRaster.End()
+			trisToRaster.Done()
 		}()
 
 	}
+	return trisToRaster.Collect()
+}
 
-	for t := range trisToRaster.Values {
+func (renderer *Renderer) Render(tris []*Triangle) {
+	sdl.RenderClear(renderer.renderer)
+	var err error
+	renderer.bufferSurface, err = sdl.LockTextureToSurface(renderer.texture, nil, renderer.bufferSurface)
+	if err != nil {
+		panic(err)
+	}
+
+	renderer.clearScreenBuffer()
+
+	renderer.buffer = unsafe.Slice((*uint32)(renderer.bufferSurface.Pixels), renderer.bufferSurface.Pitch*int32(renderer.screenHeight))
+
+	for _, t := range tris {
 		renderer.FillTriangle(t)
 		t.Render(renderer)
 	}
@@ -252,14 +255,13 @@ func (renderer *Renderer) Project(o *Object, camera *Camera, trisToRender *Queue
 					projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
 
 					trisToRender.Push(&projected)
-
 				}
 			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
-	trisToRender.End()
+	trisToRender.Done()
 }
 
 func (r *Renderer) FillTriangle(t *Triangle) {

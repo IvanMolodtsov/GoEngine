@@ -1,6 +1,11 @@
 package main
 
-import "github.com/IvanMolodtsov/GoEngine/ioc"
+import (
+	"runtime"
+
+	"github.com/IvanMolodtsov/GoEngine/engine"
+	"github.com/IvanMolodtsov/GoEngine/sdl"
+)
 
 const (
 	WIDTH  int64 = 1024
@@ -8,68 +13,43 @@ const (
 	FPS    int64 = 120
 )
 
-func test(a int) (int, error) {
-	return a + 1, nil
-}
-
-var testKey = ioc.NewKey[int, int]("test")
-
 func main() {
-	res, err := ioc.Resolve(ioc.Register, ioc.RegisterArgs{
-		Key:        "test",
-		Dependency: ioc.ToDependency(test),
-	})
-	println(err)
-	println(res)
+	runtime.GOMAXPROCS(4)
+	runtime.LockOSThread()
+	game, err := engine.Init(WIDTH, HEIGHT)
+	if err != nil {
+		panic(err)
+	}
+	defer game.Quit()
 
-	res2, err2 := ioc.Resolve(testKey, 1)
-	println(err2)
-	println(res2)
+	sdl.SetWindowRelativeMouseMode(game.Window)
 
-	res3, err3 := ioc.Resolve(ioc.Remove, testKey.Value)
-	println(err3)
-	println(res3)
+	var cube engine.Mesh // = engine.ReadFile("./axis.obj")
+	cube.Tris = []*engine.Triangle{
+		// South
+		engine.NewTriangle(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0),
+		engine.NewTriangle(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0),
+		// East
+		engine.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1., 1.0),
+		engine.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0),
+		// North
+		engine.NewTriangle(1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0),
+		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0),
+		// West
+		engine.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0),
+		engine.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
+		// Top
+		engine.NewTriangle(0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+		engine.NewTriangle(0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0),
+		// Bottom
+		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0),
+		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+	}
+	o := engine.NewObject(cube, engine.NewVector3d(0, 0, 5), engine.NewVector3d(90, 90, 90))
 
-	re4, err4 := ioc.Resolve(testKey, 1)
-	println(err4)
-	println(re4)
-	// runtime.GOMAXPROCS(4)
-	// runtime.LockOSThread()
-	// game, err := engine.Init(WIDTH, HEIGHT)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer game.Quit()
-	// println("hello")
+	// game.Loop([]*engine.Object{o})
 
-	// // var v = engine.Vector2{X: 1, Y: 1}
+	game.Run([]*engine.Object{o})
 
-	// var cube engine.Mesh // = engine.ReadFile("./axis.obj")
-	// cube.Tris = []*engine.Triangle{
-	// 	// South
-	// 	engine.NewTriangle(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0),
-	// 	engine.NewTriangle(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0),
-	// 	// East
-	// 	engine.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1., 1.0),
-	// 	engine.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0),
-	// 	// North
-	// 	engine.NewTriangle(1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0),
-	// 	engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0),
-	// 	// West
-	// 	engine.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0),
-	// 	engine.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
-	// 	// Top
-	// 	engine.NewTriangle(0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0),
-	// 	engine.NewTriangle(0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0),
-	// 	// Bottom
-	// 	engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0),
-	// 	engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
-	// }
-	// o := engine.NewObject(cube, engine.NewVector3d(0, 0, 5), engine.NewVector3d(90, 90, 90))
-
-	// // game.Loop([]*engine.Object{o})
-
-	// game.Run([]*engine.Object{o})
-
-	// runtime.UnlockOSThread()
+	runtime.UnlockOSThread()
 }

@@ -165,3 +165,18 @@ type KeyboardEvent struct {
 	Down     bool
 	Repeat   bool
 }
+
+func (e *Event) MouseMotion() MouseMotionEvent {
+	return DereferencePointer[MouseMotionEvent](e)
+}
+
+type MouseMotionEvent struct {
+	CommonEvent
+	WindowID WindowID
+	Which    MouseID
+	State    MouseButtonFlags
+	X        float32
+	Y        float32
+	XRel     float32
+	YRel     float32
+}
