@@ -1,10 +1,6 @@
-package engine
+package primitives
 
 import "math"
-
-type Vector2d struct {
-	X, Y, W float64
-}
 
 type Vector3d struct {
 	X, Y, Z, W float64

@@ -28,7 +28,7 @@ type Surface struct {
 type SDLSurface = C.SDL_Surface
 
 func (s *Surface) cPtr() *SDLSurface {
-	return (*SDLSurface	)(unsafe.Pointer(s))
+	return (*SDLSurface)(unsafe.Pointer(s))
 }
 
 func FillSurfaceRect(surface *Surface, rect *Rect, color uint32) error {

@@ -5,18 +5,20 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/IvanMolodtsov/GoEngine/primitives"
 )
 
-func ReadFile(path string) Mesh {
+func ReadFile(path string) primitives.Mesh {
 	file, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	var mesh Mesh
+	var mesh primitives.Mesh
 
-	var vertices = make([]*Vector3d, 0)
+	var vertices = make([]*primitives.Vector3d, 0)
 
 	scanner := bufio.NewScanner(file)
 
@@ -41,7 +43,7 @@ func ReadFile(path string) Mesh {
 			if err != nil {
 				panic(err)
 			}
-			vertices = append(vertices, NewVector3d(x, y, z))
+			vertices = append(vertices, primitives.NewVector3d(x, y, z))
 		case "f":
 			var a, b, c int64
 			a, err = strconv.ParseInt(tokens[1], 10, 64)
@@ -57,8 +59,8 @@ func ReadFile(path string) Mesh {
 				panic(err)
 			}
 
-			mesh.Tris = append(mesh.Tris, &Triangle{
-				Points: [3]*Vector3d{
+			mesh.Tris = append(mesh.Tris, &primitives.Triangle{
+				P: [3]*primitives.Vector3d{
 					vertices[a-1], vertices[b-1], vertices[c-1],
 				},
 			})

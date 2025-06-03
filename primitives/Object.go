@@ -1,4 +1,4 @@
-package engine
+package primitives
 
 type Object struct {
 	Mesh        Mesh

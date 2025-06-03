@@ -1,53 +1,55 @@
 package engine
 
+import "github.com/IvanMolodtsov/GoEngine/primitives"
+
 type Camera struct {
-	position  *Vector3d
-	rotation  *Vector3d
-	Direction *Vector3d
+	position  *primitives.Vector3d
+	rotation  *primitives.Vector3d
+	Direction *primitives.Vector3d
 	Yaw       float64
 }
 
-func (c *Camera) GetTranslation() *Vector3d {
+func (c *Camera) GetPosition() *primitives.Vector3d {
 	return c.position
 }
 
-func (c *Camera) SetTranslation(translation *Vector3d) {
-	c.position = translation
+func (c *Camera) Move(translation *primitives.Vector3d) {
+	c.position = c.position.Add(translation)
 }
 
-func (c *Camera) GetRotation() *Vector3d {
+func (c *Camera) GetRotation() *primitives.Vector3d {
 	return c.rotation
 }
 
-func (c *Camera) SetRotation(rotation *Vector3d) {
+func (c *Camera) SetRotation(rotation *primitives.Vector3d) {
 	c.rotation = rotation
 }
 
 func InitCamera() *Camera {
 	var c Camera
-	c.position = NewVector3d(0.0, 0.0, 0.0)
-	c.rotation = NewVector3d(0.0, 0, 0)
-	c.Direction = NewVector3d(0.0, 0.0, 1.0)
+	c.position = primitives.NewVector3d(0.0, 0.0, 0.0)
+	c.rotation = primitives.NewVector3d(0.0, 0, 0)
+	c.Direction = primitives.NewVector3d(0.0, 0.0, 1.0)
 	return &c
 }
 
-func (c *Camera) getRotationMatrix() *Matrix4x4 {
+func (c *Camera) getRotationMatrix() *primitives.Matrix4x4 {
 	rotations := c.rotation
-	xRot := XRotationMatrix(rotations.X)
-	yRot := YRotationMatrix(rotations.Y)
-	zRot := ZRotationMatrix(rotations.Z)
+	xRot := primitives.XRotationMatrix(rotations.X)
+	yRot := primitives.YRotationMatrix(rotations.Y)
+	zRot := primitives.ZRotationMatrix(rotations.Z)
 	return xRot.MulM(yRot.MulM(zRot))
 }
 
-func (camera *Camera) GetView() *Matrix4x4 {
-	up := NewVector3d(0, 1, 0)
-	target := NewVector3d(0, 0, 1)
+func (camera *Camera) GetView() *primitives.Matrix4x4 {
+	up := primitives.NewVector3d(0, 1, 0)
+	target := primitives.NewVector3d(0, 0, 1)
 	cameraRotation := camera.getRotationMatrix()
 	camera.Direction = cameraRotation.MulV(target)
 
 	target = camera.position.Add(camera.Direction)
 
-	pointAt := PointAtMatrix(camera.position, target, up)
+	pointAt := primitives.PointAtMatrix(camera.position, target, up)
 	view := pointAt.Inverse()
 	return view
 }

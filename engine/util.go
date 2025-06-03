@@ -8,10 +8,8 @@ func Equal(a, b float32) bool {
 	return math.Abs(float64(a-b)) <= epsilon
 }
 
-func CollectChan[T any](c chan T) []T {
-	var s []T
-	for v := range c {
-		s = append(s, v)
-	}
-	return s
+func Swap[T any](v1, v2 *T) {
+	t := *v1
+	*v1 = *v2
+	*v2 = t
 }

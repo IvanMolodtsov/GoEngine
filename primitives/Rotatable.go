@@ -1,4 +1,4 @@
-package engine
+package primitives
 
 type Rotatable interface {
 	GetRotation() *Vector3d

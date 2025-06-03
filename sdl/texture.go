@@ -40,6 +40,16 @@ func UnlockTexture(texture *Texture) {
 	C.SDL_UnlockTexture(texture.cPtr())
 }
 
+func LockTexture(texture *Texture, data *[]uint32, pitch *int) error {
+	dataPtr := unsafe.Pointer(data)
+	var temp C.int
+	if !C.SDL_LockTexture(texture.cPtr(), nil, &dataPtr, &temp) {
+		return GetError()
+	}
+	*pitch = int(temp)
+	return nil
+}
+
 func LockTextureToSurface(texture *Texture, rect *Rect, surface *Surface) (*Surface, error) {
 
 	var temp = surface.cPtr()

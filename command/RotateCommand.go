@@ -1,11 +1,13 @@
-package engine
+package command
+
+import "github.com/IvanMolodtsov/GoEngine/primitives"
 
 type RotateCommand struct {
-	obj      Rotatable
-	rotation *Vector3d
+	obj      primitives.Rotatable
+	rotation *primitives.Vector3d
 }
 
-func NewRotateCommand(obj Rotatable, rotation *Vector3d) *RotateCommand {
+func NewRotateCommand(obj primitives.Rotatable, rotation *primitives.Vector3d) *RotateCommand {
 	var cmd RotateCommand
 	cmd.obj = obj
 	cmd.rotation = rotation

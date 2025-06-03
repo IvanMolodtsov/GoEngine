@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/IvanMolodtsov/GoEngine/engine"
+	"github.com/IvanMolodtsov/GoEngine/primitives"
 	"github.com/IvanMolodtsov/GoEngine/sdl"
 )
 
@@ -22,34 +23,37 @@ func main() {
 	}
 	defer game.Quit()
 
-	sdl.SetWindowRelativeMouseMode(game.Window)
+	sdl.SetWindowRelativeMouseMode(game.Renderer.Window)
 
-	var cube engine.Mesh // = engine.ReadFile("./axis.obj")
-	cube.Tris = []*engine.Triangle{
+	texture := primitives.LoadImage("Sprite.png")
+	var cube primitives.Mesh // = engine.ReadFile("./axis.obj")
+	cube.Tris = []*primitives.Triangle{
 		// South
-		engine.NewTriangle(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0),
-		engine.NewTriangle(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0),
+		primitives.NewTriangle(0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0, 1, 0, 0, 1, 0),
+		primitives.NewTriangle(0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0, 1, 1, 0, 1, 1),
 		// East
-		engine.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1., 1.0),
-		engine.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0),
+		primitives.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0, 1, 0, 0, 1, 0),
+		primitives.NewTriangle(1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0, 1, 1, 0, 1, 1),
 		// North
-		engine.NewTriangle(1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0),
-		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0),
+		primitives.NewTriangle(1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0, 1, 0, 0, 1, 0),
+		primitives.NewTriangle(1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0, 1, 1, 0, 1, 1),
 		// West
-		engine.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0),
-		engine.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0),
+		primitives.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0, 1, 0, 0, 1, 0),
+		primitives.NewTriangle(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0, 1, 1, 0, 1, 1),
 		// Top
-		engine.NewTriangle(0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0),
-		engine.NewTriangle(0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0),
+		primitives.NewTriangle(0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0, 1, 0, 0, 1, 0),
+		primitives.NewTriangle(0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0, 1, 1, 0, 1, 1),
 		// Bottom
-		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0),
-		engine.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+		primitives.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0, 1, 0, 0, 1, 0),
+		primitives.NewTriangle(1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0, 1, 1, 0, 1, 1),
 	}
-	o := engine.NewObject(cube, engine.NewVector3d(0, 0, 5), engine.NewVector3d(90, 90, 90))
-
+	cube.Texture = texture
+	// r, g, b, a := cube.Texture.Data.At(16, 16).RGBA()
+	// println(uint8(r), " ", uint8(g), " ", uint8(b), " ", uint8(a))
+	o := primitives.NewObject(cube, primitives.NewVector3d(0, 0, 5), primitives.NewVector3d(90, 90, 90))
 	// game.Loop([]*engine.Object{o})
 
-	game.Run([]*engine.Object{o})
+	game.Run([]*primitives.Object{o})
 
 	runtime.UnlockOSThread()
 }

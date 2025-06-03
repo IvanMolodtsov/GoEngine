@@ -6,7 +6,7 @@ import "github.com/IvanMolodtsov/GoEngine/sdl"
 func Init(width int64, height int64) (*Game, error) {
 	err := sdl.Init(sdl.InitVideo)
 	if err != nil {
-		return nil, GetError()
+		return nil, sdl.GetError()
 	}
 	return InitGame(width, height)
 }

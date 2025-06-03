@@ -1,12 +1,10 @@
 package engine
 
 import (
-	"image/color"
 	"math"
 	"sync"
-	"unsafe"
 
-	// "github.com/jupiterrider/purego-sdl3/sdl"
+	"github.com/IvanMolodtsov/GoEngine/primitives"
 	"github.com/IvanMolodtsov/GoEngine/sdl"
 )
 
@@ -17,20 +15,26 @@ const (
 )
 
 type Renderer struct {
+	Window           *sdl.Window
 	renderer         *sdl.Renderer
-	texture          *sdl.Texture
-	bufferSurface    *sdl.Surface
-	buffer           []uint32
+	textures         [2]*Texture
+	current          uint8
 	screenWidth      int64
 	screenHeight     int64
-	ProjectionMatrix *Matrix4x4
-	screenClipPlane  *Plane
-	planes           []*Plane
+	ProjectionMatrix *primitives.Matrix4x4
+	screenClipPlane  *primitives.Plane
+	planes           []*primitives.Plane
+	Texture          *primitives.Image
 }
 
-func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, error) {
+func InitRenderer(width int64, height int64) (*Renderer, error) {
 	var renderer Renderer
-	r, err := sdl.CreateRenderer(window, "")
+	w, err := sdl.CreateWindow("Game", int32(width), int32(height), 0)
+	if err != nil {
+		return nil, err
+	}
+	renderer.Window = w
+	r, err := sdl.CreateRenderer(renderer.Window, "")
 	if err != nil {
 		return nil, err
 	}
@@ -39,166 +43,89 @@ func InitRenderer(window *sdl.Window, width int64, height int64) (*Renderer, err
 	renderer.screenWidth = width
 	renderer.screenHeight = height
 
-	t, err := sdl.CreateTexture(renderer.renderer, sdl.PixelFormatRGBA32, sdl.TextureAccessStreaming, int32(renderer.screenWidth), int32(renderer.screenHeight))
-	if err != nil {
-		return nil, err
-	}
-	renderer.texture = t
-	renderer.ProjectionMatrix = ProjectionMatrix(float64(renderer.screenHeight)/float64(renderer.screenWidth), fNear, fFar, FOV)
+	renderer.textures[0] = InitTexture(renderer.renderer, int32(renderer.screenWidth), int32(renderer.screenHeight))
+	renderer.textures[1] = InitTexture(renderer.renderer, int32(renderer.screenWidth), int32(renderer.screenHeight))
+	renderer.current = 0
+	renderer.textures[renderer.current].Lock()
+	renderer.ProjectionMatrix = primitives.ProjectionMatrix(float64(renderer.screenHeight)/float64(renderer.screenWidth), fNear, fFar, FOV)
 
-	renderer.screenClipPlane = NewPlane(NewVector3d(0, 0, 0.1), NewVector3d(0, 0, 1.0))
-	top := NewPlane(NewVector3d(0, 0, 0), NewVector3d(0, 1, 0))
-	bottom := NewPlane(NewVector3d(0, float64(renderer.screenHeight-1), 0), NewVector3d(0, -1, 0))
-	left := NewPlane(NewVector3d(0, 0, 0), NewVector3d(1, 0, 0))
-	right := NewPlane(NewVector3d(float64(renderer.screenWidth-1), 0, 0), NewVector3d(-1, 0, 0))
+	renderer.screenClipPlane = primitives.NewPlane(primitives.NewVector3d(0, 0, 0.1), primitives.NewVector3d(0, 0, 1.0))
+	top := primitives.NewPlane(primitives.NewVector3d(0, 0, 0), primitives.NewVector3d(0, 1, 0))
+	bottom := primitives.NewPlane(primitives.NewVector3d(0, float64(renderer.screenHeight-1), 0), primitives.NewVector3d(0, -1, 0))
+	left := primitives.NewPlane(primitives.NewVector3d(0, 0, 0), primitives.NewVector3d(1, 0, 0))
+	right := primitives.NewPlane(primitives.NewVector3d(float64(renderer.screenWidth-1), 0, 0), primitives.NewVector3d(-1, 0, 0))
 
-	renderer.planes = []*Plane{
+	renderer.planes = []*primitives.Plane{
 		top, bottom, left, right,
 	}
 	return &renderer, nil
 }
 
-func (renderer *Renderer) destroy() {
+func (renderer *Renderer) Destroy() {
 	sdl.DestroyRenderer(renderer.renderer)
-	sdl.DestroyTexture(renderer.texture)
+	renderer.textures[0].Destroy()
+	renderer.textures[1].Destroy()
+	sdl.DestroyWindow(renderer.Window)
 }
 
-func (renderer *Renderer) clearScreenBuffer() {
-	sdl.FillSurfaceRect(renderer.bufferSurface, nil, 0)
-}
-
-func (renderer *Renderer) ClipTriangles(tris []*Triangle) []*Triangle {
-	trisToRaster := NewQueue[*Triangle]()
+func (renderer *Renderer) ClipTriangles(tris []*primitives.Triangle) []*primitives.Triangle {
+	trisToRaster := make([]*primitives.Triangle, 0)
 
 	for _, t := range tris {
-		trisToRaster.Add()
-		go func() {
-			listTriangles := make([]*Triangle, 0)
-			listTriangles = append(listTriangles, t)
-			var newT = 1
-			for _, p := range renderer.planes {
-				for newT > 0 {
-					test := listTriangles[0]
-					listTriangles = listTriangles[1:]
-					newT -= 1
+		listTriangles := make([]*primitives.Triangle, 0)
+		listTriangles = append(listTriangles, t)
+		var newT = 1
+		for _, p := range renderer.planes {
+			for newT > 0 {
+				test := listTriangles[0]
+				listTriangles = listTriangles[1:]
+				newT -= 1
 
-					clipped := p.Clip(test)
-					listTriangles = append(listTriangles, clipped...)
+				clipped := p.Clip(test)
+				listTriangles = append(listTriangles, clipped...)
 
-				}
-				newT = len(listTriangles)
 			}
-
-			for _, res := range listTriangles {
-				trisToRaster.Push(res)
-			}
-			trisToRaster.Done()
-		}()
+			newT = len(listTriangles)
+		}
+		trisToRaster = append(trisToRaster, listTriangles...)
 
 	}
-	return trisToRaster.Collect()
+	return trisToRaster
 }
 
-func (renderer *Renderer) Render(tris []*Triangle) {
+func (renderer *Renderer) PushTriangles(tris []*primitives.Triangle, texture *primitives.Image) {
+	for _, t := range tris {
+		renderer.RasterizeTriangle(t, texture)
+		// t.Render(renderer)
+	}
+}
+
+func (renderer *Renderer) Render() {
 	sdl.RenderClear(renderer.renderer)
-	var err error
-	renderer.bufferSurface, err = sdl.LockTextureToSurface(renderer.texture, nil, renderer.bufferSurface)
-	if err != nil {
-		panic(err)
-	}
-
-	renderer.clearScreenBuffer()
-
-	renderer.buffer = unsafe.Slice((*uint32)(renderer.bufferSurface.Pixels), renderer.bufferSurface.Pitch*int32(renderer.screenHeight))
-
-	for _, t := range tris {
-		renderer.FillTriangle(t)
-		t.Render(renderer)
-	}
-
-	sdl.UnlockTexture(renderer.texture)
-	sdl.RenderTexture(renderer.renderer, renderer.texture, nil, nil)
+	renderer.SwapTextures()
 	sdl.RenderPresent(renderer.renderer)
 }
 
-func (renderer *Renderer) DrawPixel(x, y float64, color uint32) {
+func (renderer *Renderer) SwapTextures() {
+	renderer.textures[renderer.current].Unlock(renderer.renderer)
+	renderer.current = (renderer.current + 1) % 2
+	renderer.textures[renderer.current].Lock()
+}
+
+func (renderer *Renderer) DrawPixel(x, y, w float64, color uint32) {
 	dx := int64(x)
 	dy := int64(y)
 
-	isOutOfBounds := dx < 0 || dx > renderer.screenWidth || dy < 0 || dy > renderer.screenHeight
+	isOutOfBounds := dx < 0 || dx >= renderer.screenWidth || dy < 0 || dy >= renderer.screenHeight
 	isOutsideMemBuff := (renderer.screenWidth*dy + dx) >= renderer.screenWidth*renderer.screenHeight
-	if isOutOfBounds || isOutsideMemBuff {
+	if renderer.textures[renderer.current].Buffer == nil || isOutOfBounds || isOutsideMemBuff {
 		return
 	}
 
-	renderer.buffer[dy*renderer.screenWidth+dx] = color
+	renderer.textures[renderer.current].DrawPixel(dx, dy, w, color)
 }
 
-func (renderer *Renderer) DrawLine(x1, y1, x2, y2 float64, color uint32) {
-	var x, y, dx, dy, dx1, dy1, px, py, xe, ye float64
-	dx = x2 - x1
-	dy = y2 - y1
-	dx1 = float64(math.Abs(float64(dx)))
-	dy1 = float64(math.Abs(float64(dy)))
-	px = 2*dy1 - dx1
-	py = 2*dx1 - dy1
-	if dy1 <= dx1 {
-		if dx >= 0 {
-			x = x1
-			y = y1
-			xe = x2
-		} else {
-			x = x2
-			y = y2
-			xe = x1
-		}
-		renderer.DrawPixel(x, y, color)
-		for i := 0; x < xe; i++ {
-			x = x + 1
-			if px < 0 {
-				px = px + 2*dy1
-
-			} else {
-				if (dx < 0 && dy < 0) || (dx > 0 && dy > 0) {
-					y = y + 1
-				} else {
-					y = y - 1
-				}
-				px = px + 2*(dy1-dx1)
-			}
-			renderer.DrawPixel(x, y, color)
-		}
-	} else {
-		if dy >= 0 {
-			x = x1
-			y = y1
-			ye = y2
-		} else {
-			x = x2
-			y = y2
-			ye = y1
-		}
-		renderer.DrawPixel(x, y, color)
-		for i := 0; y < ye; i++ {
-			y = y + 1
-			if py <= 0 {
-				py = py + 2*dx1
-			} else {
-				if (dx < 0 && dy < 0) || (dx > 0 && dy > 0) {
-					x = x + 1
-
-				} else {
-					x = x - 1
-				}
-				py = py + 2*(dx1-dy1)
-			}
-			renderer.DrawPixel(x, y, color)
-		}
-	}
-
-}
-
-func (renderer *Renderer) Project(o *Object, camera *Camera, trisToRender *Queue[*Triangle]) {
+func (renderer *Renderer) Project(o *primitives.Object, camera *Camera, trisToRender *Queue[*primitives.Triangle]) {
 	var wg sync.WaitGroup
 	worldMatrix := o.GetWorld()
 	view := camera.GetView()
@@ -206,55 +133,80 @@ func (renderer *Renderer) Project(o *Object, camera *Camera, trisToRender *Queue
 	for _, t := range o.Mesh.Tris {
 		wg.Add(1)
 		go func() {
-			var transformed, viewed, projected Triangle
+			var transformed, viewed primitives.Triangle
 
 			// World Matrix Transform
-			transformed.Points[0] = worldMatrix.MulV(t.Points[0])
-			transformed.Points[1] = worldMatrix.MulV(t.Points[1])
-			transformed.Points[2] = worldMatrix.MulV(t.Points[2])
+			transformed.P[0] = worldMatrix.MulV(t.P[0])
+			transformed.P[1] = worldMatrix.MulV(t.P[1])
+			transformed.P[2] = worldMatrix.MulV(t.P[2])
+			transformed.T[0] = t.T[0]
+			transformed.T[1] = t.T[1]
+			transformed.T[2] = t.T[2]
 
 			// Get surface normal
 			normal := transformed.Normal()
-			cameraRay := transformed.Points[0].Sub(camera.GetTranslation())
+			cameraRay := transformed.P[0].Sub(camera.GetPosition())
 
 			// check if triangle if visible
 			if normal.DotProduct(cameraRay) < 0.0 {
-				lightDir := NewVector3d(0, 0, -1.0)
+				lightDir := primitives.NewVector3d(0, 0, -1.0)
 				lightDir = lightDir.Normalize()
 
-				luminance := normal.DotProduct(lightDir)
+				// luminance := normal.DotProduct(lightDir)
 
-				viewed.Points[0] = view.MulV(transformed.Points[0])
-				viewed.Points[1] = view.MulV(transformed.Points[1])
-				viewed.Points[2] = view.MulV(transformed.Points[2])
+				viewed.P[0] = view.MulV(transformed.P[0])
+				viewed.P[1] = view.MulV(transformed.P[1])
+				viewed.P[2] = view.MulV(transformed.P[2])
+				viewed.T[0] = transformed.T[0]
+				viewed.T[1] = transformed.T[1]
+				viewed.T[2] = transformed.T[2]
 
 				//Clip Triangle
 				clipped := screenClipPlane.Clip(&viewed)
 
 				for _, c := range clipped {
+					projected := primitives.EmptyTriangle()
 					// Project triangles from 3D --> 2D
-					projected.Points[0] = renderer.ProjectionMatrix.MulV(c.Points[0])
-					projected.Points[1] = renderer.ProjectionMatrix.MulV(c.Points[1])
-					projected.Points[2] = renderer.ProjectionMatrix.MulV(c.Points[2])
-					projected.Points[0] = projected.Points[0].Div(projected.Points[0].W)
-					projected.Points[1] = projected.Points[1].Div(projected.Points[1].W)
-					projected.Points[2] = projected.Points[2].Div(projected.Points[2].W)
+					projected.P[0] = renderer.ProjectionMatrix.MulV(c.P[0])
+					projected.P[1] = renderer.ProjectionMatrix.MulV(c.P[1])
+					projected.P[2] = renderer.ProjectionMatrix.MulV(c.P[2])
 
-					offset := NewVector3d(1.0, 1.0, 0)
-					projected.Points[0] = projected.Points[0].Add(offset)
-					projected.Points[1] = projected.Points[1].Add(offset)
-					projected.Points[2] = projected.Points[2].Add(offset)
+					w1 := projected.P[0].W
+					w2 := projected.P[1].W
+					w3 := projected.P[2].W
 
-					projected.Points[0].X *= 0.5 * float64(renderer.screenWidth)
-					projected.Points[0].Y *= 0.5 * float64(renderer.screenHeight)
-					projected.Points[1].X *= 0.5 * float64(renderer.screenWidth)
-					projected.Points[1].Y *= 0.5 * float64(renderer.screenHeight)
-					projected.Points[2].X *= 0.5 * float64(renderer.screenWidth)
-					projected.Points[2].Y *= 0.5 * float64(renderer.screenHeight)
+					projected.P[0] = projected.P[0].Div(w1)
+					projected.P[1] = projected.P[1].Div(w2)
+					projected.P[2] = projected.P[2].Div(w3)
+					projected.T[0] = c.T[0].Div(w1)
+					projected.T[1] = c.T[1].Div(w2)
+					projected.T[2] = c.T[2].Div(w3)
 
-					projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
+					// projected.T[0].U = projected.T[0].U / projected.P[0].W
+					// projected.T[1].U = projected.T[1].U / projected.P[1].W
+					// projected.T[2].U = projected.T[2].U / projected.P[2].W
+					// projected.T[0].V = projected.T[0].V / projected.P[0].W
+					// projected.T[1].V = projected.T[1].V / projected.P[1].W
+					// projected.T[2].V = projected.T[2].V / projected.P[2].W
+					// projected.T[0].W = 1.0 / projected.P[0].W
+					// projected.T[1].W = 1.0 / projected.P[1].W
+					// projected.T[2].W = 1.0 / projected.P[2].W
 
-					trisToRender.Push(&projected)
+					offset := primitives.NewVector3d(1.0, 1.0, 0)
+					projected.P[0] = projected.P[0].Add(offset)
+					projected.P[1] = projected.P[1].Add(offset)
+					projected.P[2] = projected.P[2].Add(offset)
+
+					projected.P[0].X *= 0.5 * float64(renderer.screenWidth)
+					projected.P[0].Y *= 0.5 * float64(renderer.screenHeight)
+					projected.P[1].X *= 0.5 * float64(renderer.screenWidth)
+					projected.P[1].Y *= 0.5 * float64(renderer.screenHeight)
+					projected.P[2].X *= 0.5 * float64(renderer.screenWidth)
+					projected.P[2].Y *= 0.5 * float64(renderer.screenHeight)
+
+					// projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
+
+					trisToRender.Push(projected)
 				}
 			}
 			wg.Done()
@@ -264,259 +216,165 @@ func (renderer *Renderer) Project(o *Object, camera *Camera, trisToRender *Queue
 	trisToRender.Done()
 }
 
-func (r *Renderer) FillTriangle(t *Triangle) {
-	x1 := int64(t.Points[0].X)
-	y1 := int64(t.Points[0].Y)
-	x2 := int64(t.Points[1].X)
-	y2 := int64(t.Points[1].Y)
-	x3 := int64(t.Points[2].X)
-	y3 := int64(t.Points[2].Y)
+func (r *Renderer) RasterizeTriangle(tri *primitives.Triangle, texture *primitives.Image) {
+	x1 := tri.P[0].X
+	y1 := tri.P[0].Y
+	x2 := tri.P[1].X
+	y2 := tri.P[1].Y
+	x3 := tri.P[2].X
+	y3 := tri.P[2].Y
 
-	SWAP := func(x, y *int64) {
-		t := *x
-		*x = *y
-		*y = t
-	}
+	u1 := tri.T[0].U
+	v1 := tri.T[0].V
+	w1 := tri.T[0].W
+	u2 := tri.T[1].U
+	v2 := tri.T[1].V
+	w2 := tri.T[1].W
+	u3 := tri.T[2].U
+	v3 := tri.T[2].V
+	w3 := tri.T[2].W
 
-	DRAWLINE := func(sx, ex, ny int64) {
-		for i := sx; i <= ex; i++ {
-			r.DrawPixel(float64(i), float64(ny), toHex(t.Color))
-		}
-	}
-
-	changed1, changed2 := false, false
-
-	// Sort vertices
 	if y1 > y2 {
-		SWAP(&y1, &y2)
-		SWAP(&x1, &x2)
+		Swap(&y1, &y2)
+		Swap(&x1, &x2)
+		Swap(&u1, &u2)
+		Swap(&v1, &v2)
+		Swap(&w1, &w2)
 	}
 	if y1 > y3 {
-		SWAP(&y1, &y3)
-		SWAP(&x1, &x3)
+		Swap(&y1, &y3)
+		Swap(&x1, &x3)
+		Swap(&u1, &u3)
+		Swap(&v1, &v3)
+		Swap(&w1, &w3)
 	}
 	if y2 > y3 {
-		SWAP(&y2, &y3)
-		SWAP(&x2, &x3)
-	}
-
-	// Starting points
-	t1x, t2x := x1, x1
-	y := y1
-
-	var signx1 int64
-	var dx1 int64 = x2 - x1
-	if dx1 < 0 {
-		dx1 = -dx1
-		signx1 = -1
-	} else {
-		signx1 = 1
+		Swap(&y2, &y3)
+		Swap(&x2, &x3)
+		Swap(&u2, &u3)
+		Swap(&v2, &v3)
+		Swap(&w2, &w3)
 	}
 
 	dy1 := y2 - y1
-
-	var signx2 int64
-	dx2 := x3 - x1
-	if dx2 < 0 {
-		dx2 = -dx2
-		signx2 = -1
-	} else {
-		signx2 = 1
-	}
+	dx1 := x2 - x1
+	dv1 := v2 - v1
+	du1 := u2 - u1
+	dw1 := w2 - w1
 
 	dy2 := y3 - y1
+	dx2 := x3 - x1
+	dv2 := v3 - v1
+	du2 := u3 - u1
+	dw2 := w3 - w1
 
-	if dy1 > dx1 { // swap values
-		SWAP(&dx1, &dy1)
-		changed1 = true
-	}
-	if dy2 > dx2 { // swap values
-		SWAP(&dy2, &dx2)
-		changed2 = true
-	}
-	var minx, maxx, t1xp, t2xp, e1, i int64
+	daxStep, dbxStep := 0.0, 0.0
+	du1Step, du2Step := 0.0, 0.0
+	dv1Step, dv2Step := 0.0, 0.0
+	dw1Step, dw2Step := 0.0, 0.0
 
-	e2 := dx2 >> 1
-	// Flat top, just process the second half
-	if y1 == y2 {
-		goto NEXT
+	if dy1 != 0 {
+		daxStep = dx1 / math.Abs(dy1)
+		du1Step = du1 / math.Abs(dy1)
+		dv1Step = dv1 / math.Abs(dy1)
+		dw1Step = dw1 / math.Abs(dy1)
 	}
-	e1 = dx1 >> 1
-
-	for i = 0; i < dx1; {
-		t1xp = 0
-		t2xp = 0
-		if t1x < t2x {
-			minx = t1x
-			maxx = t2x
-		} else {
-			minx = t2x
-			maxx = t1x
-		}
-		// process first line until y value is about to change
-		for i < dx1 {
-			i++
-			e1 += dy1
-			for e1 >= dx1 {
-				e1 -= dx1
-				if changed1 { //t1x += signx1;
-					t1xp = signx1
-				} else {
-					goto next1
-				}
-			}
-			if changed1 {
-				break
-			} else {
-				t1x += signx1
-			}
-		}
-		// Move line
-	next1:
-		// process second line until y value is about to change
-		for {
-			e2 += dy2
-			for e2 >= dx2 {
-				e2 -= dx2
-				if changed2 {
-					//t2x += signx2;
-					t2xp = signx2
-				} else {
-					goto next2
-				}
-			}
-			if changed2 {
-				break
-			} else {
-				t2x += signx2
-			}
-		}
-	next2:
-		if minx > t1x {
-			minx = t1x
-			if minx > t2x {
-				minx = t2x
-			}
-		}
-		if maxx < t1x {
-			maxx = t1x
-			if maxx < t2x {
-				maxx = t2x
-			}
-		}
-		DRAWLINE(minx, maxx, y) // Draw line from min to max points found on the y
-		// Now increase y
-		if !changed1 {
-			t1x += signx1
-		}
-		t1x += t1xp
-		if !changed2 {
-			t2x += signx2
-		}
-		t2x += t2xp
-		y += 1
-		if y == y2 {
-			break
-		}
-
+	if dy2 != 0 {
+		dbxStep = dx2 / math.Abs(dy2)
+		du2Step = du2 / math.Abs(dy2)
+		dv2Step = dv2 / math.Abs(dy2)
+		dw2Step = dw2 / math.Abs(dy2)
 	}
-NEXT:
-	// Second half
+
+	if dy1 != 0 {
+		for i := y1; i <= y2; i++ {
+			ax := x1 + (i-y1)*daxStep
+			bx := x1 + (i-y1)*dbxStep
+
+			texSU := u1 + (i-y1)*du1Step
+			texSV := v1 + (i-y1)*dv1Step
+			texSW := w1 + (i-y1)*dw1Step
+
+			texEU := u1 + (i-y1)*du2Step
+			texEV := v1 + (i-y1)*dv2Step
+			texEW := w1 + (i-y1)*dw2Step
+
+			if ax > bx {
+				Swap(&ax, &bx)
+				Swap(&texSU, &texEU)
+				Swap(&texSV, &texEV)
+				Swap(&texSW, &texEW)
+			}
+
+			texU := texSU
+			texV := texSV
+			texW := texSW
+
+			tStep := 1.0 / (bx - ax)
+			t := 0.0
+
+			for j := ax; j < bx; j++ {
+				texU = (1.0-t)*texSU + t*texEU
+				texV = (1.0-t)*texSV + t*texEV
+				texW = (1.0-t)*texSW + t*texEW
+				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW))
+				t += tStep
+			}
+		}
+	}
+
+	dy1 = y3 - y2
 	dx1 = x3 - x2
-	if dx1 < 0 {
-		dx1 = -dx1
-		signx1 = -1
-	} else {
-		signx1 = 1
+	dv1 = v3 - v2
+	du1 = u3 - u2
+	dw1 = w3 - w2
+
+	du1Step, dv1Step = 0, 0
+	if dy1 != 0.0 {
+		daxStep = dx1 / math.Abs(dy1)
+		du1Step = du1 / math.Abs(dy1)
+		dv1Step = dv1 / math.Abs(dy1)
+		dw1Step = dw1 / math.Abs(dy1)
 	}
-	dy1 = (y3 - y2)
-	t1x = x2
-
-	if dy1 > dx1 { // swap values
-		SWAP(&dy1, &dx1)
-		changed1 = true
-	} else {
-		changed1 = false
+	if dy2 != 0.0 {
+		dbxStep = dx2 / math.Abs(dy2)
 	}
 
-	e1 = dx1 >> 1
+	if dy1 != 0.0 {
+		for i := y2; i <= y3; i++ {
+			ax := x2 + (i-y2)*daxStep
+			bx := x1 + (i-y1)*dbxStep
 
-	for i = 0; i <= dx1; i++ {
-		t1xp = 0
-		t2xp = 0
-		if t1x < t2x {
-			minx = t1x
-			maxx = t2x
-		} else {
-			minx = t2x
-			maxx = t1x
-		}
-		// process first line until y value is about to change
-		for i < dx1 {
-			e1 += dy1
-			for e1 >= dx1 {
-				e1 -= dx1
-				if changed1 {
-					t1xp = signx1
-					break
-					//t1x += signx1;
-				} else {
-					goto next3
-				}
-			}
-			if changed1 {
-				break
-			} else {
-				t1x += signx1
-			}
-			if i < dx1 {
-				i++
-			}
-		}
-	next3:
-		// process second line until y value is about to change
-		for t2x != x3 {
-			e2 += dy2
-			for e2 >= dx2 {
-				e2 -= dx2
-				if changed2 {
-					t2xp = signx2
-				} else {
-					goto next4
-				}
-			}
-			if changed2 {
-				break
-			} else {
-				t2x += signx2
-			}
-		}
-	next4:
+			texSU := u2 + (i-y2)*du1Step
+			texSV := v2 + (i-y2)*dv1Step
+			texSW := w2 + (i-y2)*dw1Step
 
-		if minx > t1x {
-			minx = t1x
-			if minx > t2x {
-				minx = t2x
+			texEU := u1 + (i-y1)*du2Step
+			texEV := v1 + (i-y1)*dv2Step
+			texEW := w1 + (i-y1)*dw2Step
+
+			if ax > bx {
+				Swap(&ax, &bx)
+				Swap(&texSU, &texEU)
+				Swap(&texSV, &texEV)
+				Swap(&texSW, &texEW)
 			}
-		}
-		if maxx < t1x {
-			maxx = t1x
-			if maxx < t2x {
-				maxx = t2x
+
+			texU := texSU
+			texV := texSV
+			texW := texSW
+
+			tStep := 1.0 / (bx - ax)
+			t := 0.0
+
+			for j := ax; j < bx; j++ {
+				texU = (1.0-t)*texSU + t*texEU
+				texV = (1.0-t)*texSV + t*texEV
+				texW = (1.0-t)*texSW + t*texEW
+
+				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW))
+				t += tStep
 			}
-		}
-		DRAWLINE(minx, maxx, y)
-		if !changed1 {
-			t1x += signx1
-		}
-		t1x += t1xp
-		if !changed2 {
-			t2x += signx2
-		}
-		t2x += t2xp
-		y += 1
-		if y > y3 {
-			return
 		}
 	}
 }

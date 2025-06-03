@@ -39,9 +39,8 @@ type RootScope struct {
 }
 
 func (scope *RootScope) Get(key string) (D, error) {
-	println("Get ", key)
+
 	result, ok := scope.store[key]
-	println("result ", result, " ", ok)
 	if !ok {
 		return nil, errors.New("not_found")
 	}
