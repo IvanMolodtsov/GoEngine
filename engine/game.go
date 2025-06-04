@@ -70,9 +70,9 @@ func (game *Game) HandleEvents() {
 			scanCode := event.Key().Scancode
 			switch scanCode {
 			case sdl.ScancodeUp:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, velocity, 0))
-			case sdl.ScancodeDown:
 				game.commandQueue <- command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, -velocity, 0))
+			case sdl.ScancodeDown:
+				game.commandQueue <- command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, velocity, 0))
 			case sdl.ScancodeW:
 				game.commandQueue <- command.NewMoveCommand(game.Camera, forward)
 			case sdl.ScancodeS:
@@ -84,7 +84,7 @@ func (game *Game) HandleEvents() {
 			}
 		case sdl.EventMouseMotion:
 			e := event.MouseMotion()
-			game.commandQueue <- command.NewRotateCommand(game.Camera, primitives.NewVector3d(-float64(e.YRel), float64(e.XRel), 0).Mul(0.001))
+			game.commandQueue <- command.NewRotateCommand(game.Camera, primitives.NewVector3d(float64(e.YRel), float64(e.XRel), 0).Mul(0.001))
 		}
 	}
 }

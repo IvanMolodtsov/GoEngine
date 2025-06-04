@@ -23,6 +23,7 @@ func (p *Plane) Intersection(lineStart, lineEnd *Vector3d) (*Vector3d, float64) 
 }
 
 func (plane *Plane) Clip(tri *Triangle) []*Triangle {
+
 	var result = make([]*Triangle, 0)
 	var insidePoints, outsidePoints []*Vector3d
 	var insideTPoints, outsideTPoints []*Vector2d
@@ -71,20 +72,15 @@ func (plane *Plane) Clip(tri *Triangle) []*Triangle {
 		var t float64
 		outT.P[1], t = plane.Intersection(insidePoints[0], outsidePoints[0])
 		outT.T[1] = outsideTPoints[0].Sub(insideTPoints[0]).Mul(t).Add(insideTPoints[0])
-		// outT.T[1].U = t*(outsideTPoints[0].U-insideTPoints[0].U) + insideTPoints[0].U
-		// outT.T[1].V = t*(outsideTPoints[0].V-insideTPoints[0].V) + insideTPoints[0].V
-		// outT.T[1].W = t*(outsideTPoints[0].W-insideTPoints[0].W) + insideTPoints[0].W
 
 		outT.P[2], t = plane.Intersection(insidePoints[0], outsidePoints[1])
 		outT.T[2] = outsideTPoints[1].Sub(insideTPoints[0]).Mul(t).Add(insideTPoints[0])
-		// outT.T[2].U = t*(outsideTPoints[1].U-insideTPoints[0].U) + insideTPoints[0].U
-		// outT.T[2].V = t*(outsideTPoints[1].V-insideTPoints[0].V) + insideTPoints[0].V
-		// outT.T[2].W = t*(outsideTPoints[1].W-insideTPoints[0].W) + insideTPoints[0].W
 
 		return append(result, &outT)
 	}
 
 	if (len(insidePoints) == 2) && (len(outsidePoints) == 1) {
+
 		var outT1, outT2 Triangle
 		var t float64
 
@@ -97,9 +93,6 @@ func (plane *Plane) Clip(tri *Triangle) []*Triangle {
 		outT1.P[2], t = plane.Intersection(insidePoints[0], outsidePoints[0])
 
 		outT1.T[2] = outsideTPoints[0].Sub(insideTPoints[0]).Mul(t).Add(insideTPoints[0])
-		// outT1.T[2].U = t*(outsideTPoints[0].U-insideTPoints[0].U) + insideTPoints[0].U
-		// outT1.T[2].V = t*(outsideTPoints[0].V-insideTPoints[0].V) + insideTPoints[0].V
-		// outT1.T[2].W = t*(outsideTPoints[0].W-insideTPoints[0].W) + insideTPoints[0].W
 
 		outT2.P[0] = insidePoints[1]
 		outT2.T[0] = insideTPoints[1]
@@ -108,10 +101,6 @@ func (plane *Plane) Clip(tri *Triangle) []*Triangle {
 		outT2.P[2], t = plane.Intersection(insidePoints[1], outsidePoints[0])
 
 		outT2.T[2] = outsideTPoints[0].Sub(insideTPoints[1]).Mul(t).Add(insideTPoints[1])
-		// outT2.T[2].U = t*(outsideTPoints[0].U-insideTPoints[1].U) + insideTPoints[1].U
-		// outT2.T[2].V = t*(outsideTPoints[0].V-insideTPoints[1].V) + insideTPoints[1].V
-		// outT2.T[2].W = t*(outsideTPoints[0].W-insideTPoints[1].W) + insideTPoints[1].W
-
 		return append(result, &outT1, &outT2)
 	}
 

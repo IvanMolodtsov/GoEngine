@@ -13,6 +13,7 @@ type Texture struct {
 	surface     *sdl.Surface
 	Buffer      []uint32
 	DepthBuffer [][]float64
+	// mutex       sync.Mutex
 }
 
 func InitTexture(renderer *sdl.Renderer, width, height int32) *Texture {
@@ -45,12 +46,18 @@ func (texture *Texture) Unlock(renderer *sdl.Renderer) {
 	sdl.RenderTexture(renderer, texture.texture, nil, nil)
 }
 
-func (texture *Texture) Clear() {
-	sdl.FillSurfaceRect(texture.surface, nil, 0)
+func (texture *Texture) ClearBuffer() {
+	// texture.mutex.Lock()
 	texture.DepthBuffer = make([][]float64, texture.width)
 	for i := range texture.DepthBuffer {
 		texture.DepthBuffer[i] = make([]float64, texture.height)
 	}
+	// texture.mutex.Unlock()
+}
+
+func (texture *Texture) Clear() {
+	sdl.FillSurfaceRect(texture.surface, nil, 0)
+
 }
 
 func (texture *Texture) Destroy() {
@@ -58,7 +65,7 @@ func (texture *Texture) Destroy() {
 }
 
 func (texture *Texture) DrawPixel(x, y int64, w float64, color uint32) {
-	if texture.DepthBuffer[x][y] <= w {
+	if texture.DepthBuffer[x][y] < w {
 		texture.DepthBuffer[x][y] = w
 		texture.Buffer[y*int64(texture.width)+x] = color
 	}

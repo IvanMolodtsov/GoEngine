@@ -5,7 +5,7 @@ import "image/color"
 type Triangle struct {
 	P       [3]*Vector3d
 	T       [3]*Vector2d
-	Color   color.RGBA
+	Color   color.Color
 	Texture *Image
 }
 

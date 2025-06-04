@@ -33,11 +33,10 @@ func LoadImage(path string) *Image {
 }
 
 func (img *Image) GetPixel(u, v float64) uint32 {
-	// println(img.Data.Bounds().Dx(), img.Data.Bounds().Dy())
-	U := int(u * float64(img.Data.Bounds().Dx()))
-	V := int(v * float64(img.Data.Bounds().Dy()))
-	// println(U, V)
-	color := img.Data.At(U, V)
-	// println(color.RGBA())
-	return toHex(color)
+	w := float64(img.Data.Bounds().Dx())
+	u = min(max(u*w, 0), w)
+	h := float64(img.Data.Bounds().Dy())
+	v = min(max(v*h, 0), h)
+	color := img.Data.At(int(u), int(v))
+	return ToHex(color)
 }

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"image/color"
 	"math"
 	"sync"
 
@@ -94,10 +95,18 @@ func (renderer *Renderer) ClipTriangles(tris []*primitives.Triangle) []*primitiv
 }
 
 func (renderer *Renderer) PushTriangles(tris []*primitives.Triangle, texture *primitives.Image) {
+	var wg sync.WaitGroup
 	for _, t := range tris {
-		renderer.RasterizeTriangle(t, texture)
-		// t.Render(renderer)
+		wg.Add(1)
+		go func() {
+			renderer.RasterizeTriangle(t, texture)
+			renderer.DrawLine(t.P[0].X, t.P[0].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(t.Color))
+			renderer.DrawLine(t.P[0].X, t.P[0].Y, t.P[2].X, t.P[2].Y, primitives.ToHex(t.Color))
+			renderer.DrawLine(t.P[2].X, t.P[2].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(t.Color))
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 }
 
 func (renderer *Renderer) Render() {
@@ -107,9 +116,14 @@ func (renderer *Renderer) Render() {
 }
 
 func (renderer *Renderer) SwapTextures() {
+	newCurrent := (renderer.current + 1) % 2
+	renderer.textures[newCurrent].ClearBuffer()
+	renderer.textures[newCurrent].Lock()
+	renderer.textures[newCurrent].Clear()
+
 	renderer.textures[renderer.current].Unlock(renderer.renderer)
-	renderer.current = (renderer.current + 1) % 2
-	renderer.textures[renderer.current].Lock()
+	renderer.current = newCurrent
+
 }
 
 func (renderer *Renderer) DrawPixel(x, y, w float64, color uint32) {
@@ -130,18 +144,15 @@ func (renderer *Renderer) Project(o *primitives.Object, camera *Camera, trisToRe
 	worldMatrix := o.GetWorld()
 	view := camera.GetView()
 	screenClipPlane := renderer.screenClipPlane
-	for _, t := range o.Mesh.Tris {
+	for _, T := range o.Mesh.Tris {
 		wg.Add(1)
-		go func() {
-			var transformed, viewed primitives.Triangle
+		func(t *primitives.Triangle) {
+			transformed := primitives.EmptyTriangle()
 
 			// World Matrix Transform
 			transformed.P[0] = worldMatrix.MulV(t.P[0])
 			transformed.P[1] = worldMatrix.MulV(t.P[1])
 			transformed.P[2] = worldMatrix.MulV(t.P[2])
-			transformed.T[0] = t.T[0]
-			transformed.T[1] = t.T[1]
-			transformed.T[2] = t.T[2]
 
 			// Get surface normal
 			normal := transformed.Normal()
@@ -149,48 +160,47 @@ func (renderer *Renderer) Project(o *primitives.Object, camera *Camera, trisToRe
 
 			// check if triangle if visible
 			if normal.DotProduct(cameraRay) < 0.0 {
-				lightDir := primitives.NewVector3d(0, 0, -1.0)
-				lightDir = lightDir.Normalize()
+				// lightDir := primitives.NewVector3d(0, 0, -1.0)
+				// lightDir = lightDir.Normalize()
 
 				// luminance := normal.DotProduct(lightDir)
+
+				viewed := primitives.EmptyTriangle()
 
 				viewed.P[0] = view.MulV(transformed.P[0])
 				viewed.P[1] = view.MulV(transformed.P[1])
 				viewed.P[2] = view.MulV(transformed.P[2])
-				viewed.T[0] = transformed.T[0]
-				viewed.T[1] = transformed.T[1]
-				viewed.T[2] = transformed.T[2]
+				viewed.T[0] = t.T[0].Copy()
+				viewed.T[1] = t.T[1].Copy()
+				viewed.T[2] = t.T[2].Copy()
 
 				//Clip Triangle
-				clipped := screenClipPlane.Clip(&viewed)
+				clipped := screenClipPlane.Clip(viewed)
 
 				for _, c := range clipped {
-					projected := primitives.EmptyTriangle()
 					// Project triangles from 3D --> 2D
+					projected := primitives.EmptyTriangle()
 					projected.P[0] = renderer.ProjectionMatrix.MulV(c.P[0])
 					projected.P[1] = renderer.ProjectionMatrix.MulV(c.P[1])
 					projected.P[2] = renderer.ProjectionMatrix.MulV(c.P[2])
+					projected.T[0] = c.T[0].Copy()
+					projected.T[1] = c.T[1].Copy()
+					projected.T[2] = c.T[2].Copy()
 
-					w1 := projected.P[0].W
-					w2 := projected.P[1].W
-					w3 := projected.P[2].W
+					projected.T[0] = projected.T[0].Div(projected.P[0].W)
+					projected.T[1] = projected.T[1].Div(projected.P[1].W)
+					projected.T[2] = projected.T[2].Div(projected.P[2].W)
+					projected.P[0] = projected.P[0].Div(projected.P[0].W)
+					projected.P[1] = projected.P[1].Div(projected.P[1].W)
+					projected.P[2] = projected.P[2].Div(projected.P[2].W)
 
-					projected.P[0] = projected.P[0].Div(w1)
-					projected.P[1] = projected.P[1].Div(w2)
-					projected.P[2] = projected.P[2].Div(w3)
-					projected.T[0] = c.T[0].Div(w1)
-					projected.T[1] = c.T[1].Div(w2)
-					projected.T[2] = c.T[2].Div(w3)
-
-					// projected.T[0].U = projected.T[0].U / projected.P[0].W
-					// projected.T[1].U = projected.T[1].U / projected.P[1].W
-					// projected.T[2].U = projected.T[2].U / projected.P[2].W
-					// projected.T[0].V = projected.T[0].V / projected.P[0].W
-					// projected.T[1].V = projected.T[1].V / projected.P[1].W
-					// projected.T[2].V = projected.T[2].V / projected.P[2].W
-					// projected.T[0].W = 1.0 / projected.P[0].W
-					// projected.T[1].W = 1.0 / projected.P[1].W
-					// projected.T[2].W = 1.0 / projected.P[2].W
+					// X/Y are inverted so put them back
+					projected.P[0].X *= -1.0
+					projected.P[1].X *= -1.0
+					projected.P[2].X *= -1.0
+					projected.P[0].Y *= -1.0
+					projected.P[1].Y *= -1.0
+					projected.P[2].Y *= -1.0
 
 					offset := primitives.NewVector3d(1.0, 1.0, 0)
 					projected.P[0] = projected.P[0].Add(offset)
@@ -204,13 +214,13 @@ func (renderer *Renderer) Project(o *primitives.Object, camera *Camera, trisToRe
 					projected.P[2].X *= 0.5 * float64(renderer.screenWidth)
 					projected.P[2].Y *= 0.5 * float64(renderer.screenHeight)
 
-					// projected.Color = color.RGBA{R: 255, G: 255, B: 255, A: uint8(luminance * 255)}
+					projected.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
 
 					trisToRender.Push(projected)
 				}
 			}
 			wg.Done()
-		}()
+		}(T)
 	}
 	wg.Wait()
 	trisToRender.Done()
@@ -306,9 +316,9 @@ func (r *Renderer) RasterizeTriangle(tri *primitives.Triangle, texture *primitiv
 				Swap(&texSW, &texEW)
 			}
 
-			texU := texSU
-			texV := texSV
-			texW := texSW
+			var texU = texSU
+			var texV = texSV
+			var texW = texSW
 
 			tStep := 1.0 / (bx - ax)
 			t := 0.0
@@ -360,9 +370,9 @@ func (r *Renderer) RasterizeTriangle(tri *primitives.Triangle, texture *primitiv
 				Swap(&texSW, &texEW)
 			}
 
-			texU := texSU
-			texV := texSV
-			texW := texSW
+			var texU = texSU
+			var texV = texSV
+			var texW = texSW
 
 			tStep := 1.0 / (bx - ax)
 			t := 0.0
@@ -375,6 +385,69 @@ func (r *Renderer) RasterizeTriangle(tri *primitives.Triangle, texture *primitiv
 				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW))
 				t += tStep
 			}
+		}
+	}
+}
+
+func (renderer *Renderer) DrawLine(x1, y1, x2, y2 float64, color uint32) {
+	var x, y, dx, dy, dx1, dy1, px, py, xe, ye float64
+	dx = x2 - x1
+	dy = y2 - y1
+	dx1 = float64(math.Abs(float64(dx)))
+	dy1 = float64(math.Abs(float64(dy)))
+	px = 2*dy1 - dx1
+	py = 2*dx1 - dy1
+	if dy1 <= dx1 {
+		if dx >= 0 {
+			x = x1
+			y = y1
+			xe = x2
+		} else {
+			x = x2
+			y = y2
+			xe = x1
+		}
+		renderer.DrawPixel(x, y, 255, color)
+		for i := 0; x < xe; i++ {
+			x = x + 1
+			if px < 0 {
+				px = px + 2*dy1
+
+			} else {
+				if (dx < 0 && dy < 0) || (dx > 0 && dy > 0) {
+					y = y + 1
+				} else {
+					y = y - 1
+				}
+				px = px + 2*(dy1-dx1)
+			}
+			renderer.DrawPixel(x, y, 255, color)
+		}
+	} else {
+		if dy >= 0 {
+			x = x1
+			y = y1
+			ye = y2
+		} else {
+			x = x2
+			y = y2
+			ye = y1
+		}
+		renderer.DrawPixel(x, y, 255, color)
+		for i := 0; y < ye; i++ {
+			y = y + 1
+			if py <= 0 {
+				py = py + 2*dx1
+			} else {
+				if (dx < 0 && dy < 0) || (dx > 0 && dy > 0) {
+					x = x + 1
+
+				} else {
+					x = x - 1
+				}
+				py = py + 2*(dx1-dy1)
+			}
+			renderer.DrawPixel(x, y, 255, color)
 		}
 	}
 }

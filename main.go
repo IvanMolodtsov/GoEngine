@@ -15,7 +15,7 @@ const (
 )
 
 func main() {
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(8)
 	runtime.LockOSThread()
 	game, err := engine.Init(WIDTH, HEIGHT)
 	if err != nil {
