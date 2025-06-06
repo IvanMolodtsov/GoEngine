@@ -3,7 +3,6 @@ package engine
 import (
 	"image/color"
 	"math"
-	"sync"
 
 	"github.com/IvanMolodtsov/GoEngine/primitives"
 	"github.com/IvanMolodtsov/GoEngine/sdl"
@@ -25,7 +24,6 @@ type Renderer struct {
 	ProjectionMatrix *primitives.Matrix4x4
 	screenClipPlane  *primitives.Plane
 	planes           []*primitives.Plane
-	Texture          *primitives.Image
 }
 
 func InitRenderer(width int64, height int64) (*Renderer, error) {
@@ -69,46 +67,6 @@ func (renderer *Renderer) Destroy() {
 	sdl.DestroyWindow(renderer.Window)
 }
 
-func (renderer *Renderer) ClipTriangles(tris []*primitives.Triangle) []*primitives.Triangle {
-	trisToRaster := make([]*primitives.Triangle, 0)
-
-	for _, t := range tris {
-		listTriangles := make([]*primitives.Triangle, 0)
-		listTriangles = append(listTriangles, t)
-		var newT = 1
-		for _, p := range renderer.planes {
-			for newT > 0 {
-				test := listTriangles[0]
-				listTriangles = listTriangles[1:]
-				newT -= 1
-
-				clipped := p.Clip(test)
-				listTriangles = append(listTriangles, clipped...)
-
-			}
-			newT = len(listTriangles)
-		}
-		trisToRaster = append(trisToRaster, listTriangles...)
-
-	}
-	return trisToRaster
-}
-
-func (renderer *Renderer) PushTriangles(tris []*primitives.Triangle, texture *primitives.Image) {
-	var wg sync.WaitGroup
-	for _, t := range tris {
-		wg.Add(1)
-		go func() {
-			renderer.RasterizeTriangle(t, texture)
-			renderer.DrawLine(t.P[0].X, t.P[0].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(t.Color))
-			renderer.DrawLine(t.P[0].X, t.P[0].Y, t.P[2].X, t.P[2].Y, primitives.ToHex(t.Color))
-			renderer.DrawLine(t.P[2].X, t.P[2].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(t.Color))
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-}
-
 func (renderer *Renderer) Render() {
 	sdl.RenderClear(renderer.renderer)
 	renderer.SwapTextures()
@@ -140,12 +98,10 @@ func (renderer *Renderer) DrawPixel(x, y, w float64, color uint32) {
 }
 
 func (renderer *Renderer) Project(o *primitives.Object, camera *Camera, trisToRender *Queue[*primitives.Triangle]) {
-	var wg sync.WaitGroup
 	worldMatrix := o.GetWorld()
 	view := camera.GetView()
 	screenClipPlane := renderer.screenClipPlane
 	for _, T := range o.Mesh.Tris {
-		wg.Add(1)
 		func(t *primitives.Triangle) {
 			transformed := primitives.EmptyTriangle()
 
@@ -219,14 +175,18 @@ func (renderer *Renderer) Project(o *primitives.Object, camera *Camera, trisToRe
 					trisToRender.Push(projected)
 				}
 			}
-			wg.Done()
 		}(T)
 	}
-	wg.Wait()
 	trisToRender.Done()
 }
 
-func (r *Renderer) RasterizeTriangle(tri *primitives.Triangle, texture *primitives.Image) {
+func (r *Renderer) DrawTriangleWireframe(t *primitives.Triangle, color color.Color) {
+	r.DrawLine(t.P[0].X, t.P[0].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(color))
+	r.DrawLine(t.P[0].X, t.P[0].Y, t.P[2].X, t.P[2].Y, primitives.ToHex(color))
+	r.DrawLine(t.P[2].X, t.P[2].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(color))
+}
+
+func (r *Renderer) DrawTriangle(tri *primitives.Triangle, texture *primitives.Image) {
 	x1 := tri.P[0].X
 	y1 := tri.P[0].Y
 	x2 := tri.P[1].X

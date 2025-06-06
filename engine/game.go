@@ -78,40 +78,14 @@ func (game *Game) HandleEvents() {
 			case sdl.ScancodeS:
 				game.commandQueue <- command.NewMoveCommand(game.Camera, forward.Negative())
 			case sdl.ScancodeA:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, side)
-			case sdl.ScancodeD:
 				game.commandQueue <- command.NewMoveCommand(game.Camera, side.Negative())
+			case sdl.ScancodeD:
+				game.commandQueue <- command.NewMoveCommand(game.Camera, side)
 			}
 		case sdl.EventMouseMotion:
 			e := event.MouseMotion()
 			game.commandQueue <- command.NewRotateCommand(game.Camera, primitives.NewVector3d(float64(e.YRel), float64(e.XRel), 0).Mul(0.001))
 		}
-	}
-}
-
-func (game *Game) GenerateFrames(entities []*primitives.Object) {
-	for game.IsRunning {
-		game.FrameStart()
-
-		projected := NewQueue[*primitives.Triangle]()
-		counter := 0
-		for _, o := range entities {
-			projected.Add()
-			counter++
-			go game.Renderer.Project(o, game.Camera, projected)
-		}
-		render := projected.Collect()
-		// render = Sort(render, func(a, b *primitives.Triangle) bool {
-		// 	z1 := (a.P[0].Z + a.P[1].Z + a.P[2].Z) / 3.0
-		// 	z2 := (b.P[0].Z + b.P[1].Z + b.P[2].Z) / 3.0
-		// 	return z1 > z2
-		// })
-
-		trisToRender := game.Renderer.ClipTriangles(render)
-
-		game.Renderer.PushTriangles(trisToRender, entities[0].Mesh.Texture)
-		game.FrameEnd()
-		game.renderQueue <- Signal{}
 	}
 }
 
@@ -126,15 +100,15 @@ func (game *Game) RunCommands() {
 func (game *Game) Run(entities []*primitives.Object) {
 	go game.HandleEvents()
 	go game.RunCommands()
-	go game.GenerateFrames(entities)
+
+	pipe := NewPipeline(game.Camera, game.Renderer, true)
 
 	for game.IsRunning {
+		game.FrameStart()
 		ReadEvents(game)
-		select {
-		case <-game.renderQueue:
-			game.Renderer.Render()
-		case <-time.After(20 * time.Millisecond):
-		}
+		pipe.Render(entities)
+		game.Renderer.Render()
+		game.FrameEnd()
 	}
 
 }
