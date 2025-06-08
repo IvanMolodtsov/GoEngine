@@ -1,13 +1,15 @@
 package sdl
 
-// #cgo LDFLAGS: -lSDL3
+// #cgo LDFLAGS: -L. -lSDL3
 // #include <SDL3/SDL.h>
 import "C"
 
 type Renderer = C.SDL_Renderer
 
 func CreateRenderer(window *Window, name string) (*Renderer, error) {
-	var r *Renderer = C.SDL_CreateRenderer(window, C.CString(name))
+	cname := C.CString(name)
+	defer Free(cname)
+	var r *Renderer = C.SDL_CreateRenderer(window, cname)
 	if r == nil {
 		return nil, GetError()
 	}

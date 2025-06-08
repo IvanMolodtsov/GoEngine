@@ -1,6 +1,6 @@
 package sdl
 
-// #cgo LDFLAGS: -lSDL3
+// #cgo LDFLAGS: -L. -lSDL3
 // #include <SDL3/SDL.h>
 import "C"
 
@@ -39,7 +39,9 @@ const (
 )
 
 func CreateWindow(name string, width, height int32, flags WindowFlags) (*Window, error) {
-	var w *Window = C.SDL_CreateWindow(C.CString(name), C.int(width), C.int(height), flags)
+	cname := C.CString(name)
+	defer Free(cname)
+	var w *Window = C.SDL_CreateWindow(cname, C.int(width), C.int(height), flags)
 	if w == nil {
 		return nil, GetError()
 	}

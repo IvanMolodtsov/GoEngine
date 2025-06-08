@@ -1,6 +1,6 @@
 package sdl
 
-// #cgo LDFLAGS: -lSDL3
+// #cgo LDFLAGS: -L. -lSDL3
 // #include <SDL3/SDL.h>
 import "C"
 import "unsafe"
