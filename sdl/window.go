@@ -1,7 +1,8 @@
 package sdl
 
-// #cgo LDFLAGS: -L. -lSDL3
-// #include <SDL3/SDL.h>
+// #cgo CFLAGS: -I${SRCDIR}/include/SDL
+// #cgo LDFLAGS: -L${SRCDIR}/libs -lSDL3
+// #include "SDL.h"
 import "C"
 
 type Window = C.SDL_Window
