@@ -54,7 +54,7 @@ func main() {
 	o := object.NewEntity(&cube, primitives.NewVector3d(0, 0, 5), primitives.NewVector3d(90, 90, 90))
 	// game.Loop([]*engine.Object{o})
 
-	game.Run([]object.Entity{o})
+	game.Run([]*object.UObject{o})
 
 	runtime.UnlockOSThread()
 }

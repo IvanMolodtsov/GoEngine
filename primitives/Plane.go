@@ -25,6 +25,7 @@ func (p *Plane) Intersection(lineStart, lineEnd *Vector3d) (*Vector3d, float64) 
 func (plane *Plane) Clip(tri *Triangle) []*Triangle {
 
 	var result = make([]*Triangle, 0)
+	luminance := tri.Luminance
 	var insidePoints, outsidePoints []*Vector3d
 	var insideTPoints, outsideTPoints []*Vector2d
 	d0 := plane.Dist(tri.P[0])
@@ -76,6 +77,8 @@ func (plane *Plane) Clip(tri *Triangle) []*Triangle {
 		outT.P[2], t = plane.Intersection(insidePoints[0], outsidePoints[1])
 		outT.T[2] = outsideTPoints[1].Sub(insideTPoints[0]).Mul(t).Add(insideTPoints[0])
 
+		outT.Luminance = luminance
+
 		return append(result, &outT)
 	}
 
@@ -101,6 +104,8 @@ func (plane *Plane) Clip(tri *Triangle) []*Triangle {
 		outT2.P[2], t = plane.Intersection(insidePoints[1], outsidePoints[0])
 
 		outT2.T[2] = outsideTPoints[0].Sub(insideTPoints[1]).Mul(t).Add(insideTPoints[1])
+		outT1.Luminance = luminance
+		outT2.Luminance = luminance
 		return append(result, &outT1, &outT2)
 	}
 

@@ -3,6 +3,7 @@ package engine
 import (
 	"image/color"
 
+	"github.com/IvanMolodtsov/GoEngine/command"
 	"github.com/IvanMolodtsov/GoEngine/object"
 	"github.com/IvanMolodtsov/GoEngine/primitives"
 )
@@ -21,11 +22,13 @@ func NewPipeline(camera *Camera, renderer *Renderer, isDebug bool) *PipeLine {
 	return &pipe
 }
 
-func (pipe PipeLine) Render(objects []object.Entity) {
+func (pipe PipeLine) Render(objects []*object.UObject) {
 	for _, o := range objects {
 		projected := pipe.Project(o)
 		clipped := pipe.ClipTriangles(projected)
 		pipe.RasterizeTriangles(clipped, o.GetMesh().Texture)
+		// Testing lighting
+		command.NewRotateCommand(o, primitives.NewVector3d(0.01, 0.01, 0.01)).Invoke()
 	}
 }
 
@@ -50,10 +53,13 @@ func (pipe PipeLine) Project(object object.Entity) []*primitives.Triangle {
 
 		// check if triangle if visible
 		if normal.DotProduct(cameraRay) < 0.0 {
-			// lightDir := primitives.NewVector3d(0, 0, -1.0)
-			// lightDir = lightDir.Normalize()
 
-			// luminance := normal.DotProduct(lightDir)
+			// lighting
+			// Separate in other pipeline step; add support for light sources
+			lightDir := primitives.NewVector3d(0, 0, -1.0)
+			lightDir = lightDir.Normalize()
+
+			luminance := normal.DotProduct(lightDir)
 
 			viewed := primitives.EmptyTriangle()
 
@@ -105,7 +111,7 @@ func (pipe PipeLine) Project(object object.Entity) []*primitives.Triangle {
 				projected.P[2].Y *= 0.5 * float64(pipe.renderer.screenHeight)
 
 				projected.Color = color.RGBA{R: 255, G: 0, B: 0, A: 255}
-
+				projected.Luminance = luminance
 				result = append(result, projected)
 			}
 		}

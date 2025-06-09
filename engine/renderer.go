@@ -98,12 +98,13 @@ func (renderer *Renderer) DrawPixel(x, y, w float64, color uint32) {
 }
 
 func (r *Renderer) DrawTriangleWireframe(t *primitives.Triangle, color color.Color) {
-	r.DrawLine(t.P[0].X, t.P[0].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(color))
-	r.DrawLine(t.P[0].X, t.P[0].Y, t.P[2].X, t.P[2].Y, primitives.ToHex(color))
-	r.DrawLine(t.P[2].X, t.P[2].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(color))
+	r.DrawLine(t.P[0].X, t.P[0].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(color, 1))
+	r.DrawLine(t.P[0].X, t.P[0].Y, t.P[2].X, t.P[2].Y, primitives.ToHex(color, 1))
+	r.DrawLine(t.P[2].X, t.P[2].Y, t.P[1].X, t.P[1].Y, primitives.ToHex(color, 1))
 }
 
 func (r *Renderer) DrawTriangle(tri *primitives.Triangle, texture *primitives.Image) {
+	l := math.Abs(tri.Luminance)
 	x1 := tri.P[0].X
 	y1 := tri.P[0].Y
 	x2 := tri.P[1].X
@@ -204,7 +205,7 @@ func (r *Renderer) DrawTriangle(tri *primitives.Triangle, texture *primitives.Im
 				texU = (1.0-t)*texSU + t*texEU
 				texV = (1.0-t)*texSV + t*texEV
 				texW = (1.0-t)*texSW + t*texEW
-				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW))
+				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW, l))
 				t += tStep
 			}
 		}
@@ -259,7 +260,7 @@ func (r *Renderer) DrawTriangle(tri *primitives.Triangle, texture *primitives.Im
 				texV = (1.0-t)*texSV + t*texEV
 				texW = (1.0-t)*texSW + t*texEW
 
-				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW))
+				r.DrawPixel(j, i, texW, texture.GetPixel(texU/texW, texV/texW, l))
 				t += tStep
 			}
 		}

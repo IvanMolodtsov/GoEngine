@@ -32,11 +32,11 @@ func LoadImage(path string) *Image {
 	return &i
 }
 
-func (img *Image) GetPixel(u, v float64) uint32 {
+func (img *Image) GetPixel(u, v, l float64) uint32 {
 	w := float64(img.Data.Bounds().Dx())
 	u = min(max(u*w, 0), w)
 	h := float64(img.Data.Bounds().Dy())
 	v = min(max(v*h, 0), h)
 	color := img.Data.At(int(u), int(v))
-	return ToHex(color)
+	return ToHex(color, l)
 }

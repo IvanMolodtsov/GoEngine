@@ -98,12 +98,12 @@ func (game *Game) RunCommands() {
 	}
 }
 
-func (game *Game) Run(entities []object.Entity) {
+func (game *Game) Run(entities []*object.UObject) {
 	go game.HandleEvents()
 	go game.RunCommands()
 
 	pipe := NewPipeline(game.Camera, game.Renderer, true)
-
+	// command.NewRotateCommand(entities[0], primitives.NewVector3d(1, 1, 1)).Invoke()
 	for game.IsRunning {
 		game.FrameStart()
 		ReadEvents(game)
