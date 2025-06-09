@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/IvanMolodtsov/GoEngine/command"
+	"github.com/IvanMolodtsov/GoEngine/object"
 	"github.com/IvanMolodtsov/GoEngine/primitives"
 	"github.com/IvanMolodtsov/GoEngine/sdl"
 )
@@ -65,7 +66,7 @@ func (game *Game) HandleEvents() {
 			}
 
 			velocity := 8.0 * game.DeltaTime.Seconds()
-			forward := game.Camera.Direction.Mul(velocity)
+			forward := game.Camera.GetDirection().Mul(velocity)
 			side := deg90.MulV(forward)
 			scanCode := event.Key().Scancode
 			switch scanCode {
@@ -97,7 +98,7 @@ func (game *Game) RunCommands() {
 	}
 }
 
-func (game *Game) Run(entities []*primitives.Object) {
+func (game *Game) Run(entities []object.Entity) {
 	go game.HandleEvents()
 	go game.RunCommands()
 

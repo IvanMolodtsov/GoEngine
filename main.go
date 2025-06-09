@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/IvanMolodtsov/GoEngine/engine"
+	"github.com/IvanMolodtsov/GoEngine/object"
 	"github.com/IvanMolodtsov/GoEngine/primitives"
 	"github.com/IvanMolodtsov/GoEngine/sdl"
 )
@@ -50,10 +51,10 @@ func main() {
 	cube.Texture = texture
 	// r, g, b, a := cube.Texture.Data.At(16, 16).RGBA()
 	// println(uint8(r), " ", uint8(g), " ", uint8(b), " ", uint8(a))
-	o := primitives.NewObject(cube, primitives.NewVector3d(0, 0, 5), primitives.NewVector3d(90, 90, 90))
+	o := object.NewEntity(&cube, primitives.NewVector3d(0, 0, 5), primitives.NewVector3d(90, 90, 90))
 	// game.Loop([]*engine.Object{o})
 
-	game.Run([]*primitives.Object{o})
+	game.Run([]object.Entity{o})
 
 	runtime.UnlockOSThread()
 }

@@ -3,6 +3,7 @@ package engine
 import (
 	"image/color"
 
+	"github.com/IvanMolodtsov/GoEngine/object"
 	"github.com/IvanMolodtsov/GoEngine/primitives"
 )
 
@@ -20,22 +21,22 @@ func NewPipeline(camera *Camera, renderer *Renderer, isDebug bool) *PipeLine {
 	return &pipe
 }
 
-func (pipe PipeLine) Render(objects []*primitives.Object) {
+func (pipe PipeLine) Render(objects []object.Entity) {
 	for _, o := range objects {
 		projected := pipe.Project(o)
 		clipped := pipe.ClipTriangles(projected)
-		pipe.RasterizeTriangles(clipped, o.Mesh.Texture)
+		pipe.RasterizeTriangles(clipped, o.GetMesh().Texture)
 	}
 }
 
-func (pipe PipeLine) Project(object *primitives.Object) []*primitives.Triangle {
+func (pipe PipeLine) Project(object object.Entity) []*primitives.Triangle {
 	worldMatrix := object.GetWorld()
 	view := pipe.Camera.GetView()
 	screenClipPlane := pipe.renderer.screenClipPlane
 
 	result := make([]*primitives.Triangle, 0)
 
-	for _, t := range object.Mesh.Tris {
+	for _, t := range object.GetMesh().Tris {
 		transformed := primitives.EmptyTriangle()
 
 		// World Matrix Transform
