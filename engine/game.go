@@ -21,7 +21,7 @@ type Game struct {
 	frameStart   time.Time
 	DeltaTime    time.Duration
 	eventQueue   chan sdl.Event
-	commandQueue chan command.Command
+	commandQueue *Queue[command.Command]
 	renderQueue  chan Signal
 }
 
@@ -38,7 +38,7 @@ func InitGame(width int64, height int64) (*Game, error) {
 	game.Camera = InitCamera()
 	game.eventQueue = make(chan sdl.Event)
 	game.renderQueue = make(chan Signal)
-	game.commandQueue = make(chan command.Command)
+	game.commandQueue = NewQueue[command.Command]()
 
 	return &game, nil
 }
@@ -71,30 +71,31 @@ func (game *Game) HandleEvents() {
 			scanCode := event.Key().Scancode
 			switch scanCode {
 			case sdl.ScancodeUp:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, -velocity, 0))
+				game.commandQueue.Push(command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, velocity, 0)))
 			case sdl.ScancodeDown:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, velocity, 0))
+				game.commandQueue.Push(command.NewMoveCommand(game.Camera, primitives.NewVector3d(0, -velocity, 0)))
 			case sdl.ScancodeW:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, forward)
+				game.commandQueue.Push(command.NewMoveCommand(game.Camera, forward))
 			case sdl.ScancodeS:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, forward.Negative())
+				game.commandQueue.Push(command.NewMoveCommand(game.Camera, forward.Negative()))
 			case sdl.ScancodeA:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, side.Negative())
+				game.commandQueue.Push(command.NewMoveCommand(game.Camera, side.Negative()))
 			case sdl.ScancodeD:
-				game.commandQueue <- command.NewMoveCommand(game.Camera, side)
+				game.commandQueue.Push(command.NewMoveCommand(game.Camera, side))
 			}
 		case sdl.EventMouseMotion:
 			e := event.MouseMotion()
-			game.commandQueue <- command.NewRotateCommand(game.Camera, primitives.NewVector3d(float64(e.YRel), float64(e.XRel), 0).Mul(0.001))
+			game.commandQueue.Push(command.NewRotateCommand(game.Camera, primitives.NewVector3d(float64(e.YRel), float64(e.XRel), 0).Mul(0.001)))
 		}
 	}
 }
 
 func (game *Game) RunCommands() {
 	for game.IsRunning {
-		cmd := <-game.commandQueue
-		cmd.Invoke()
-
+		cmd, ok := game.commandQueue.Pop()
+		if ok {
+			cmd.Invoke()
+		}
 	}
 }
 

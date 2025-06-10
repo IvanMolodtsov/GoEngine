@@ -2,6 +2,7 @@ package engine
 
 import (
 	"image/color"
+	"sync"
 
 	"github.com/IvanMolodtsov/GoEngine/command"
 	"github.com/IvanMolodtsov/GoEngine/object"
@@ -24,8 +25,11 @@ func NewPipeline(camera *Camera, renderer *Renderer, isDebug bool) *PipeLine {
 
 func (pipe PipeLine) Render(objects []*object.UObject) {
 	for _, o := range objects {
+
 		projected := pipe.Project(o)
+
 		clipped := pipe.ClipTriangles(projected)
+
 		pipe.RasterizeTriangles(clipped, o.GetMesh().Texture)
 		// Testing lighting
 		command.NewRotateCommand(o, primitives.NewVector3d(0.01, 0.01, 0.01)).Invoke()
@@ -145,11 +149,18 @@ func (pipe *PipeLine) ClipTriangles(tris []*primitives.Triangle) []*primitives.T
 }
 
 func (pipe *PipeLine) RasterizeTriangles(tris []*primitives.Triangle, texture *primitives.Image) {
+	var wg sync.WaitGroup
+	wg.Add(len(tris))
 	for _, t := range tris {
-		pipe.renderer.DrawTriangle(t, texture)
+		go func() {
+			pipe.renderer.DrawTriangle(t, texture)
 
-		if pipe.IsDebug {
-			pipe.renderer.DrawTriangleWireframe(t, color.RGBA{R: 150, G: 150, B: 150, A: 255})
-		}
+			if pipe.IsDebug {
+				pipe.renderer.DrawTriangleWireframe(t, color.RGBA{R: 0, G: 255, B: 0, A: 255})
+			}
+			wg.Done()
+		}()
+
 	}
+	wg.Wait()
 }

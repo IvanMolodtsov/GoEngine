@@ -1,46 +1,31 @@
 package engine
 
+import "sync"
+
 type Queue[T any] struct {
-	Values  chan T
-	counter uint32
+	values []T
+	mut    sync.Mutex
 }
 
 func NewQueue[T any]() *Queue[T] {
 	var q Queue[T]
-	q.counter = 0
-	q.Values = make(chan T)
+	q.values = make([]T, 0)
 	return &q
 }
 
 func (q *Queue[T]) Push(elem T) {
-	q.Values <- elem
+	q.mut.Lock()
+	defer q.mut.Unlock()
+	q.values = append(q.values, elem)
 }
 
-func (q *Queue[T]) Add() {
-	q.counter++
-}
-
-func (q *Queue[T]) Done() {
-	q.counter--
-	if q.counter == 0 {
-		close(q.Values)
+func (q *Queue[T]) Pop() (T, bool) {
+	if len(q.values) == 0 {
+		return *new(T), false
 	}
-}
-
-func (q *Queue[T]) Collect() []T {
-	collector := make([]T, 0)
-	for v := range q.Values {
-		collector = append(collector, v)
-	}
-	return collector
-}
-
-func (q *Queue[T]) ForEach(operand func(T)) {
-	for q.counter != 0 {
-		select {
-		case v := <-q.Values:
-			operand(v)
-		default:
-		}
-	}
+	q.mut.Lock()
+	defer q.mut.Unlock()
+	res := q.values[len(q.values)-1]
+	q.values = q.values[:len(q.values)-1]
+	return res, true
 }

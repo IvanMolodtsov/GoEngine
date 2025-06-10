@@ -100,6 +100,15 @@ type FColor struct {
 	R, G, B, A float32
 }
 
+func (color FColor) CStruct() C.SDL_FColor {
+	return C.SDL_FColor{
+		r: C.float(color.R),
+		g: C.float(color.G),
+		b: C.float(color.B),
+		a: C.float(color.A),
+	}
+}
+
 type Palette struct {
 	ncolors int32
 	colors  *Color
