@@ -1,0 +1,71 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "glsl:frag",
+      "command": "glslc",
+      "args" : [
+        "shader.glsl.frag", "-o","shader.spv.frag"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/shaders"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "glsl:vert",
+      "command": "glslc",
+      "args" : [
+        "shader.glsl.vert", "-o","shader.spv.vert"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/shaders"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "glsl:shaders",
+      "dependsOn": [
+        "glsl:frag",
+        "glsl:vert"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    }
+
+  ]
+}

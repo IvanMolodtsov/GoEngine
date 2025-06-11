@@ -103,17 +103,19 @@ loop:
 			Texture: swapChainTexture,
 			LoadOp:  sdl.GPU_LOADOP_CLEAR,
 			ClearColor: sdl.FColor{
-				R: 0, G: 100, B: 100, A: 255,
+				R: 0, G: 1, B: 0, A: 1,
 			},
 			StoreOp: sdl.GPU_STOREOP_STORE,
 		}
 
-		pass, err := sdl.BeginGPURenderPass(cmdBuf, colorTarget, 1, nil)
+		pass, err := sdl.BeginGPURenderPass(cmdBuf, &colorTarget, 1, nil)
 		if err != nil {
 			panic(err.Error())
 		}
 
 		sdl.EndGPURenderPass(pass)
+
+		sdl.SubmitGPUCommandBuffer(cmdBuf)
 	}
 
 	runtime.UnlockOSThread()
